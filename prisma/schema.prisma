@@ -1,8 +1,9 @@
+
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../app/generated/prisma"
   previewFeatures = ["driverAdapters", "queryCompiler"]
-  runtime = "bun"
+  runtime         = "bun"
 }
 
 datasource db {
@@ -23,42 +24,50 @@ enum ScheduleStatus {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  name      String
-  email     String     @unique
-  Workflows Workflow[]
+  id            String     @id @default(uuid())
+  name          String
+  email         String     @unique
+  Workflows     Workflow[]
+  emailVerified Boolean    @default(false)
+  image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @default(now()) @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
 }
 
 model Workflow {
   id         String              @id @default(uuid())
   userId     String
-  workflow   Json                // JSONB column storing nodes + edges
+  workflow   Json 
   user       User                @relation(fields: [userId], references: [id])
   Schedules  WorkflowSchedule[]
   Executions WorkflowExecution[]
 
-  @@index([userId])              
+  @@index([userId])
 }
 
 model Agent {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   type      String
-  functions Json     
-  metadata  Json?    
+  functions Json
+  metadata  Json?
 }
 
 model WorkflowSchedule {
-  id             String    @id @default(uuid())
+  id             String         @id @default(uuid())
   workflowId     String
   cronExpression String
   timezone       String
   status         ScheduleStatus
   nextRunAt      DateTime
   lastRunAt      DateTime?
-  workflow       Workflow  @relation(fields: [workflowId], references: [id])
+  workflow       Workflow       @relation(fields: [workflowId], references: [id])
 
-  @@index([workflowId])      
-  @@index([nextRunAt])       
+  @@index([workflowId])
+  @@index([nextRunAt])
 }
 
 model WorkflowExecution {
@@ -70,6 +79,51 @@ model WorkflowExecution {
   output     Json
   workflow   Workflow       @relation(fields: [workflowId], references: [id])
 
-  @@index([workflowId])      
-  @@index([startedAt])       
+  @@index([workflowId])
+  @@index([startedAt])
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
 }
