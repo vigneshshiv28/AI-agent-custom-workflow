@@ -1,5 +1,6 @@
 import prisma from "../db/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
+import { ScheduleStatus } from "@/app/generated/prisma/client";
 
 
 interface CreateWorkflowData{
@@ -9,8 +10,24 @@ interface CreateWorkflowData{
 }
 
 interface UpdateWorkflowData{
-    name?: string,
+    name?: string,  
     workflow?: Prisma.InputJsonValue
+}
+
+interface CreateWorkflowScheduleData{
+    workflowId: string,
+    cronExpression: string,
+    timezone: string,
+    status: ScheduleStatus, 
+    nextRunAt: Date
+}
+
+interface UpdateWorkflowScheduleData{
+    cronExpression?: string,
+    timezone?: string,
+    status?: ScheduleStatus, 
+    nextRunAt?: Date
+    lastRunAt?: Date
 }
 
 export async function createWorkflow(data:CreateWorkflowData){
@@ -81,4 +98,82 @@ export async function deleteWorkflow(id: string) {
   return await prisma.workflow.delete({
     where: { id },
   });
+}
+
+// Schedule Workflow 
+
+export async function createWorkflowSchedule(data: CreateWorkflowScheduleData ){
+  return await prisma.workflowSchedule.create({
+    data:{
+      workflowId: data.workflowId,
+      cronExpression: data.cronExpression,
+      timezone: data.timezone,
+      status: data.status,
+      nextRunAt: data.nextRunAt
+    },
+    include:{
+      workflow:{
+        select:{
+          id: true,
+          name: true,
+        }
+      }
+    }
+  })
+}
+
+export async function updateWorkflowSchedule(id: string, data: UpdateWorkflowScheduleData){
+  return await prisma.workflowSchedule.update({
+    where:{id},
+    data:{
+      ...(data.cronExpression && { cronExpression: data.cronExpression }),
+      ...(data.timezone && { timezone: data.timezone }),
+      ...(data.status && { status: data.status }),
+      ...(data.nextRunAt && { nextRunAt: data.nextRunAt }),
+      ...(data.lastRunAt && { lastRunAt: data.lastRunAt })
+    },
+    include:{
+      workflow:{
+        select:{
+          id: true,
+          name: true,
+        }
+      }
+    }
+  })
+}
+
+export async function deleteWorkflowSchedule(id: string) {
+  return await prisma.workflowSchedule.delete({
+    where:{id}
+  })
+}
+
+export async function findWorkflowScheduleById(id: string) {
+  return await prisma.workflowSchedule.findUnique({
+    where:{id},
+    include:{
+      workflow:{
+        select:{
+          id: true,
+          name: true,
+        }
+      }
+    }
+  })
+} 
+
+export async function findWorkflowSchedulesByWorkflowId(workflowId: string) {
+  return await prisma.workflowSchedule.findMany({
+    where:{workflowId},
+    orderBy:{nextRunAt: "asc"},
+    include:{
+      workflow:{
+        select:{
+          id: true,
+          name: true,
+        }
+      }
+    }
+  })
 }

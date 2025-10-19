@@ -53,7 +53,7 @@ model Workflow {
 
 model Tool {
   id          String   @id @default(uuid())
-  name        String
+  name        String   @unique 
   description String
   parameters  Json      
   returnType  Json      
@@ -67,17 +67,18 @@ model Tool {
 
 
 model Agent {
-  id        String @id @default(uuid())
-  name      String
-  type      String
-  functions Json
-  metadata  Json?
-  tools     Tools[]
+  id               String @id @default(uuid())
+  name             String @unique
+  description      String
+  metadata         Json?
+  tools            Tool[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model WorkflowSchedule {
   id             String         @id @default(uuid())
-  workflowId     String
+  workflowId     String         
   cronExpression String
   timezone       String
   status         ScheduleStatus
