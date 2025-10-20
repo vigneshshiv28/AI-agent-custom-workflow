@@ -2,19 +2,17 @@ import prisma from "../db/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { ScheduleStatus } from "@/app/generated/prisma/client";
 
-
-interface CreateWorkflowData{
-    userId: string,
+export interface CreateWorkflowData{
     name: string,
     workflow: Prisma.InputJsonValue
 }
 
-interface UpdateWorkflowData{
+export interface UpdateWorkflowData{
     name?: string,  
     workflow?: Prisma.InputJsonValue
 }
 
-interface CreateWorkflowScheduleData{
+export interface CreateWorkflowScheduleData{
     workflowId: string,
     cronExpression: string,
     timezone: string,
@@ -22,7 +20,7 @@ interface CreateWorkflowScheduleData{
     nextRunAt: Date
 }
 
-interface UpdateWorkflowScheduleData{
+export interface UpdateWorkflowScheduleData{
     cronExpression?: string,
     timezone?: string,
     status?: ScheduleStatus, 
@@ -42,11 +40,11 @@ export interface UpdateExecutionData {
   output?: Prisma.InputJsonValue;
 }
 
-export async function createWorkflow(data:CreateWorkflowData){
+async function createWorkflow(userId: string, data:CreateWorkflowData){
     return await prisma.workflow.create({
         data:{
             name: data.name,
-            userId: data.userId,
+            userId: userId,
             workflow: data.workflow
         },
         include:{
@@ -61,7 +59,7 @@ export async function createWorkflow(data:CreateWorkflowData){
     })
 }
 
-export async function findWorkflowById(id: string) {
+async function findWorkflowById(id: string) {
   return await prisma.workflow.findUnique({
     where: { id },
     include: {
@@ -81,7 +79,7 @@ export async function findWorkflowById(id: string) {
   });
 }
 
-export async function findWorkflowsByUserId(userId: string) {
+async function findWorkflowsByUserId(userId: string) {
   return await prisma.workflow.findMany({
     where: { userId },
     orderBy: { id: "desc" },
@@ -96,7 +94,22 @@ export async function findWorkflowsByUserId(userId: string) {
   });
 }
 
-export async function updateWorkflow(id: string, data: UpdateWorkflowData){
+async function findWorkflowByUserIdAndName(userId: string, name: string){
+  return await prisma.workflow.findUnique({
+    where: { userId_name: { userId, name } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+}
+
+async function updateWorkflow(id: string, data: UpdateWorkflowData){
   return await prisma.workflow.update({
     where:{id},
     data: {
@@ -106,7 +119,7 @@ export async function updateWorkflow(id: string, data: UpdateWorkflowData){
   })
 }
 
-export async function deleteWorkflow(id: string) {
+async function deleteWorkflow(id: string) {
   return await prisma.workflow.delete({
     where: { id },
   });
@@ -114,7 +127,7 @@ export async function deleteWorkflow(id: string) {
 
 // Schedule Workflow 
 
-export async function createWorkflowSchedule(data: CreateWorkflowScheduleData ){
+async function createWorkflowSchedule(data: CreateWorkflowScheduleData ){
   return await prisma.workflowSchedule.create({
     data:{
       workflowId: data.workflowId,
@@ -134,7 +147,7 @@ export async function createWorkflowSchedule(data: CreateWorkflowScheduleData ){
   })
 }
 
-export async function updateWorkflowSchedule(id: string, data: UpdateWorkflowScheduleData){
+async function updateWorkflowSchedule(id: string, data: UpdateWorkflowScheduleData){
   return await prisma.workflowSchedule.update({
     where:{id},
     data:{
@@ -155,13 +168,13 @@ export async function updateWorkflowSchedule(id: string, data: UpdateWorkflowSch
   })
 }
 
-export async function deleteWorkflowSchedule(id: string) {
+async function deleteWorkflowSchedule(id: string) {
   return await prisma.workflowSchedule.delete({
     where:{id}
   })
 }
 
-export async function findWorkflowScheduleById(id: string) {
+async function findWorkflowScheduleById(id: string) {
   return await prisma.workflowSchedule.findUnique({
     where:{id},
     include:{
@@ -175,7 +188,7 @@ export async function findWorkflowScheduleById(id: string) {
   })
 } 
 
-export async function findWorkflowSchedulesByWorkflowId(workflowId: string) {
+async function findWorkflowSchedulesByWorkflowId(workflowId: string) {
   return await prisma.workflowSchedule.findMany({
     where:{workflowId},
     orderBy:{nextRunAt: "asc"},
@@ -190,7 +203,7 @@ export async function findWorkflowSchedulesByWorkflowId(workflowId: string) {
   })
 }
 
-export async function createExecution(data: CreateExecutionData) {
+async function createExecution(data: CreateExecutionData) {
   return await prisma.workflowExecution.create({
     data: {
       workflowId: data.workflowId,
@@ -211,7 +224,7 @@ export async function createExecution(data: CreateExecutionData) {
   });
 }
 
-export async function updateExecution(executionId: string, data: UpdateExecutionData) {
+async function updateExecution(executionId: string, data: UpdateExecutionData) {
   return await prisma.workflowExecution.update({
     where: { id: executionId },
     data: {
@@ -227,7 +240,7 @@ export async function updateExecution(executionId: string, data: UpdateExecution
   });
 }
 
-export async function findExecutionById(executionId: string) {
+async function findExecutionById(executionId: string) {
   return await prisma.workflowExecution.findUnique({
     where: { id: executionId },
     include: {
@@ -238,7 +251,7 @@ export async function findExecutionById(executionId: string) {
   });
 }
 
-export async function deleteOldExecutions(days: number) {
+async function deleteOldExecutions(days: number) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
 
@@ -247,4 +260,19 @@ export async function deleteOldExecutions(days: number) {
       startedAt: { lt: cutoffDate },
     },
   });
+}
+
+
+export const WorkflowRepository = {
+  createWorkflow,
+  findWorkflowById,
+  findWorkflowsByUserId,
+  findWorkflowByUserIdAndName,
+  updateWorkflow,
+  deleteWorkflow,
+  createWorkflowSchedule,
+  updateWorkflowSchedule,
+  deleteWorkflowSchedule,
+  findWorkflowScheduleById,
+  findWorkflowSchedulesByWorkflowId,
 }

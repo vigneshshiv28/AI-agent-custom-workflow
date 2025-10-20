@@ -41,13 +41,14 @@ model User {
 
 model Workflow {
   id         String              @id @default(uuid())
-  name       String 
+  name       String
   userId     String
   workflow   Json 
   user       User                @relation(fields: [userId], references: [id])
   Schedules  WorkflowSchedule[]
   Executions WorkflowExecution[]
 
+  @@unique([userId, name])
   @@index([userId])
 }
 
