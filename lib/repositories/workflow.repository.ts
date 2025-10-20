@@ -30,6 +30,18 @@ interface UpdateWorkflowScheduleData{
     lastRunAt?: Date
 }
 
+export interface CreateExecutionData {
+  workflowId: string;
+  status: "RUNNING" | "SUCCESS" | "FAILED";
+  output?: Prisma.InputJsonValue;
+}
+
+export interface UpdateExecutionData {
+  status?: "RUNNING" | "SUCCESS" | "FAILED";
+  endedAt?: Date;
+  output?: Prisma.InputJsonValue;
+}
+
 export async function createWorkflow(data:CreateWorkflowData){
     return await prisma.workflow.create({
         data:{
@@ -176,4 +188,63 @@ export async function findWorkflowSchedulesByWorkflowId(workflowId: string) {
       }
     }
   })
+}
+
+export async function createExecution(data: CreateExecutionData) {
+  return await prisma.workflowExecution.create({
+    data: {
+      workflowId: data.workflowId,
+      status: data.status,
+      output: data.output ?? {},
+    },
+    include: {
+      workflow: {
+        select: {
+          id: true,
+          name: true,
+          user: {
+            select: { id: true, name: true },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function updateExecution(executionId: string, data: UpdateExecutionData) {
+  return await prisma.workflowExecution.update({
+    where: { id: executionId },
+    data: {
+      ...(data.status && { status: data.status }),
+      ...(data.endedAt && { endedAt: data.endedAt }),
+      ...(data.output && { output: data.output }),
+    },
+    include: {
+      workflow: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+}
+
+export async function findExecutionById(executionId: string) {
+  return await prisma.workflowExecution.findUnique({
+    where: { id: executionId },
+    include: {
+      workflow: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+}
+
+export async function deleteOldExecutions(days: number) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+
+  return await prisma.workflowExecution.deleteMany({
+    where: {
+      startedAt: { lt: cutoffDate },
+    },
+  });
 }
