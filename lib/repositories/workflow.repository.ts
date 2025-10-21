@@ -1,6 +1,7 @@
 import prisma from "../db/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
-import { ScheduleStatus } from "@/app/generated/prisma/client";
+import { ScheduleStatus,ScheduleType } from "@/app/generated/prisma/client";
+
 
 export interface CreateWorkflowData{
     name: string,
@@ -14,7 +15,11 @@ export interface UpdateWorkflowData{
 
 export interface CreateWorkflowScheduleData{
     workflowId: string,
-    cronExpression: string,
+    cronExpression?: string,
+    type: ScheduleType,
+    intervalSeconds?: number,
+    intervalConfig?: Prisma.InputJsonValue,
+    calendarDate?: Date,
     timezone: string,
     status: ScheduleStatus, 
     nextRunAt: Date
@@ -127,24 +132,28 @@ async function deleteWorkflow(id: string) {
 
 // Schedule Workflow 
 
-async function createWorkflowSchedule(data: CreateWorkflowScheduleData ){
+export async function createWorkflowSchedule(data: CreateWorkflowScheduleData) {
   return await prisma.workflowSchedule.create({
-    data:{
+    data: {
       workflowId: data.workflowId,
-      cronExpression: data.cronExpression,
       timezone: data.timezone,
       status: data.status,
-      nextRunAt: data.nextRunAt
+      type: data.type,
+      nextRunAt: data.nextRunAt,
+      cronExpression: data.cronExpression ?? null,
+      intervalSeconds: data.intervalSeconds ?? null,
+      intervalConfig: data.intervalConfig ?? Prisma.DbNull,
+      calendarDate: data.calendarDate ?? null,    
     },
-    include:{
-      workflow:{
-        select:{
+    include: {
+      workflow: {
+        select: {
           id: true,
           name: true,
-        }
-      }
-    }
-  })
+        },
+      },
+    },
+  });
 }
 
 async function updateWorkflowSchedule(id: string, data: UpdateWorkflowScheduleData){
@@ -275,4 +284,8 @@ export const WorkflowRepository = {
   deleteWorkflowSchedule,
   findWorkflowScheduleById,
   findWorkflowSchedulesByWorkflowId,
+  createExecution,
+  updateExecution,
+  findExecutionById,
+  deleteOldExecutions
 }

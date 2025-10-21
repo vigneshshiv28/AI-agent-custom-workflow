@@ -23,6 +23,12 @@ enum ScheduleStatus {
   ERROR
 }
 
+enum ScheduleType {
+  CRON
+  INTERVAL
+  CALENDAR
+}
+
 
 model User {
   id            String     @id @default(uuid())
@@ -78,17 +84,22 @@ model Agent {
 }
 
 model WorkflowSchedule {
-  id             String         @id @default(uuid())
-  workflowId     String         
-  cronExpression String
-  timezone       String
-  status         ScheduleStatus
-  nextRunAt      DateTime
-  lastRunAt      DateTime?
-  workflow       Workflow       @relation(fields: [workflowId], references: [id])
+  id               String           @id @default(uuid())
+  workflowId       String
+  type             ScheduleType     @default(CRON)
+  cronExpression   String?          
+  intervalSeconds  Int?  
+  intervalConfig   Json?           
+  calendarDate     DateTime?        
+  timezone         String?          @default("UTC")
+  status           ScheduleStatus   @default(ACTIVE) 
+  nextRunAt        DateTime
+  lastRunAt        DateTime?
+  workflow         Workflow         @relation(fields: [workflowId], references: [id])
 
   @@index([workflowId])
   @@index([nextRunAt])
+  @@index([status, nextRunAt])
 }
 
 model WorkflowExecution {
