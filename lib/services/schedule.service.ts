@@ -11,6 +11,7 @@ interface CreateWorkflowSchedule {
     type: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig;
 }
 
+
 interface CronScheduleConfig {
     mode: "CRON";
     cronExpression: string;
@@ -27,6 +28,8 @@ interface CalendarScheduleConfig {
     mode: "CALENDAR";
     dateTime: Date; 
 }
+
+
 
 async function createWorkflowSchedule(schedule: CreateWorkflowSchedule){
     const workflow = await WorkflowRepository.findWorkflowById(schedule.workflowId)
@@ -69,6 +72,26 @@ async function createWorkflowSchedule(schedule: CreateWorkflowSchedule){
 
             break;
     }
+
+    const newSchedule = await WorkflowRepository.createWorkflowSchedule(scheduleData)
+
+    return newSchedule
+}
+
+
+async function getWorkflowSchedulesByUserId(userId: string){
+    const schedules = await WorkflowRepository.findWorkflowSchedulesByUserId(userId)
+    return schedules
+}
+
+async function getWorkflowScheduleById(id: string){
+    const schedule = await WorkflowRepository.findWorkflowScheduleById(id)
+    return schedule
+}
+
+async function  deleteWorkflowSchedule(id:string) {
+    const schedule = await WorkflowRepository.deleteWorkflowSchedule(id)
+    return schedule
 }
 
 function calculateNextRunTime(
@@ -154,6 +177,12 @@ function convertIntervalToCron(config: IntervalScheduleConfig): string {
     }
 }
 
+export const ScheduleService = {
+    createWorkflowSchedule,
+    getWorkflowSchedulesByUserId,
+    getWorkflowScheduleById,
+    deleteWorkflowSchedule
+} 
 
 
 

@@ -212,6 +212,26 @@ async function findWorkflowSchedulesByWorkflowId(workflowId: string) {
   })
 }
 
+async function findWorkflowSchedulesByUserId(userId: string) {
+  return await prisma.workflowSchedule.findMany({
+    where: {
+      workflow: {  
+        userId: userId,
+      },
+    },
+    orderBy: { nextRunAt: "asc" },
+    include: {
+      workflow: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+}
+
+
 async function createExecution(data: CreateExecutionData) {
   return await prisma.workflowExecution.create({
     data: {
@@ -284,6 +304,7 @@ export const WorkflowRepository = {
   deleteWorkflowSchedule,
   findWorkflowScheduleById,
   findWorkflowSchedulesByWorkflowId,
+  findWorkflowSchedulesByUserId,
   createExecution,
   updateExecution,
   findExecutionById,
