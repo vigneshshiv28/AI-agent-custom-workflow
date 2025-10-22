@@ -280,6 +280,12 @@ async function findExecutionById(executionId: string) {
   });
 }
 
+async function deleteExecution(executionId: string) {
+  return await prisma.workflowExecution.delete({
+    where: { id: executionId },
+  });
+}
+
 async function deleteOldExecutions(days: number) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
@@ -308,5 +314,6 @@ export const WorkflowRepository = {
   createExecution,
   updateExecution,
   findExecutionById,
+  deleteExecution,
   deleteOldExecutions
 }
