@@ -16,7 +16,7 @@ const UpdateExecutionSchema = z.object({
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ executionId: string }> }
 ) {
   try {
     const body = await request.json();
@@ -30,8 +30,9 @@ export async function PATCH(
     }
 
     const { status, endedAt, output } = result.data;
+    const {executionId} = await params
 
-    const execution = await ExecutionService.updateWorkflowExecution(params.id, {
+    const execution = await ExecutionService.updateWorkflowExecution(executionId, {
       status,
       endedAt,
       output,
@@ -39,7 +40,7 @@ export async function PATCH(
 
     return NextResponse.json(execution, { status: 200 });
   } catch (error) {
-
+    console.log(error)
 
     return NextResponse.json(
       { error: "Internal Server Error" },
@@ -50,10 +51,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ executionId: string }> }
 ) {
   try {
-    await ExecutionService.deleteWorkflowExecution(params.id);
+    const {executionId} = await params 
+    await ExecutionService.deleteWorkflowExecution(executionId);
 
     return NextResponse.json(
       { message: "Execution deleted successfully" },

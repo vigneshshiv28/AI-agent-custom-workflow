@@ -4,7 +4,7 @@ import { ScheduleService } from "@/lib/services/schedule.service";
 import { WorkflowService } from "@/lib/services";
 
 
-export async function GET(request: Request, { params }: { params: { scheduleId: string } }){
+export async function GET(request: Request, { params }: { params: Promise<{ workflowId: string; scheduleId: string }> }){
     const session = await auth.api.getSession({headers: request.headers})
 
     if (!session) {
@@ -12,7 +12,24 @@ export async function GET(request: Request, { params }: { params: { scheduleId: 
     }
 
     try{
-        const schedule = await ScheduleService.getWorkflowScheduleById(session.user.id)
+
+        const {workflowId , scheduleId } = await params
+
+        const schedule = await ScheduleService.getWorkflowScheduleById(scheduleId)
+        const workflow = await WorkflowService.getWorkflowById(workflowId, session.user.id)
+        
+        if (!workflow) {
+          return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
+        }
+        
+        if (!schedule) {
+          return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
+        }
+        
+        if (session.user.id !== workflow.userId || schedule.workflow.id !== workflowId) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
+
         return NextResponse.json(schedule, {status:200})
     }catch(error){
 
@@ -24,7 +41,7 @@ export async function GET(request: Request, { params }: { params: { scheduleId: 
     
 }
 
-export async function DELETE(request: Request, { params }: { params: { workflowId: string, scheduleId: string  } }){
+export async function DELETE(request: Request, { params }: { params: Promise<{ workflowId: string; scheduleId: string }> }){
     const session = await auth.api.getSession({headers: request.headers})
 
     if (!session) {
@@ -32,8 +49,10 @@ export async function DELETE(request: Request, { params }: { params: { workflowI
     }
 
     try{
-        const schedule = await ScheduleService.getWorkflowScheduleById(params.scheduleId)
-        const workflow = await WorkflowService.getWorkflowById(params.workflowId, session.user.id)
+
+        const {workflowId , scheduleId } = await params
+        const schedule = await ScheduleService.getWorkflowScheduleById(scheduleId)
+        const workflow = await WorkflowService.getWorkflowById(workflowId, session.user.id)
         
         if (!workflow) {
           return NextResponse.json({ error: "Workflow not found" }, { status: 404 });
@@ -43,11 +62,10 @@ export async function DELETE(request: Request, { params }: { params: { workflowI
           return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
         }
         
-        if (session.user.id !== workflow.userId || schedule.workflow.id !== params.workflowId) {
+        if (session.user.id !== workflow.userId || schedule.workflow.id !== workflowId) {
           return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
     
-        const scheduleId = params.scheduleId
         await ScheduleService.deleteWorkflowSchedule(scheduleId);
     
         return NextResponse.json(

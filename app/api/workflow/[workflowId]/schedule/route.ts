@@ -44,7 +44,7 @@ export const CreateWorkflowScheduleSchema = z.object({
 });
 
 
-export async function POST(request: Request, { params }: { params: { workflowId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ workflowId: string }> }) {
     const session = await auth.api.getSession({ headers: request.headers });
   
     if (!session) {
@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: { params: { workflowId:
       }
   
       const userId = session.user.id;
-      const workflowId = params.workflowId;
+      const {workflowId } = await params;
   
       
       const workflow = await WorkflowService.getWorkflowById(workflowId,userId);

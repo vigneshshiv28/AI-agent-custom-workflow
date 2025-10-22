@@ -9,7 +9,7 @@ const UpdateWorkflowSchema = z.object({
     workflow : z.any().optional(),
 })
 
-export async function GET(request: Request, { params }: { params: { id: string } }){
+export async function GET(request: Request, { params }: { params: Promise<{ workflowId: string }> }){
     const session = await auth.api.getSession({headers: request.headers})
 
     if (!session){
@@ -17,7 +17,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 
     try {
-        const workflow = await WorkflowService.getWorkflowById(params.id,session.user.id)
+        const { workflowId } = await params 
+        const workflow = await WorkflowService.getWorkflowById(workflowId,session.user.id)
 
         if (!workflow) {
             return NextResponse.json(
@@ -35,7 +36,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }){
+export async function PATCH(request: Request, { params }: { params: Promise<{ workflowId: string }> }){
     const session = await auth.api.getSession({headers: request.headers})
 
     if (!session){
@@ -43,6 +44,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     try {
+
+        const { workflowId } = await params 
 
         const body = await request.json()
 
@@ -53,7 +56,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         }
 
 
-        const updatedWorkflow = await WorkflowService.updateWorkflow(session.user.id, params.id, result.data)
+        const updatedWorkflow = await WorkflowService.updateWorkflow(session.user.id, workflowId, result.data)
 
         return NextResponse.json(updatedWorkflow,{status: 200})
     } catch (error) {
