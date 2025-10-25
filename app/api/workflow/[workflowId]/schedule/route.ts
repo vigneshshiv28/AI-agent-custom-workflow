@@ -45,38 +45,38 @@ export const CreateWorkflowScheduleSchema = z.object({
 
 
 export async function POST(request: Request, { params }: { params: Promise<{ workflowId: string }> }) {
-    const session = await auth.api.getSession({ headers: request.headers });
-  
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  
-    try {
-      const body = await request.json();
-      const result = CreateWorkflowScheduleSchema.safeParse(body);
-  
-      if (!result.success) {
-        return NextResponse.json({ error: result.error.message }, { status: 400 });
-      }
-  
-      const userId = session.user.id;
-      const {workflowId } = await params;
-  
-      
-      const workflow = await WorkflowService.getWorkflowById(workflowId,userId);
-      if (!workflow || workflow.userId !== userId) {
-        return NextResponse.json({ error: "Workflow not found or unauthorized" }, { status: 403 });
-      }
-  
-      const schedule = await ScheduleService.createWorkflowSchedule({
-        ...result.data,
-        workflowId,
-      });
-  
-      return NextResponse.json(schedule, { status: 201 });
-  
-    } catch (error) {
-      console.error("Error creating schedule:", error);
-      return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
+  const session = await auth.api.getSession({ headers: request.headers });
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  try {
+    const body = await request.json();
+    const result = CreateWorkflowScheduleSchema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.message }, { status: 400 });
+    }
+
+    const userId = session.user.id;
+    const {workflowId } = await params;
+
+    
+    const workflow = await WorkflowService.getWorkflowById(workflowId,userId);
+    if (!workflow || workflow.userId !== userId) {
+      return NextResponse.json({ error: "Workflow not found or unauthorized" }, { status: 403 });
+    }
+
+    const schedule = await ScheduleService.createWorkflowSchedule({
+      ...result.data,
+      workflowId,
+    });
+
+    return NextResponse.json(schedule, { status: 201 });
+
+  } catch (error) {
+    console.error("Error creating schedule:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
