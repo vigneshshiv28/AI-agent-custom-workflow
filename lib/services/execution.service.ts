@@ -1,5 +1,5 @@
-import { WorkflowRepository, CreateExecutionData, UpdateExecutionData } from "../repositories";
-import { WorkflowStatus } from "@/app/generated/prisma/client";
+import { WorkflowRepository, CreateExecutionData, UpdateExecutionData } from '../repositories';
+import { WorkflowStatus } from '@/app/generated/prisma/client';
 
 interface CreateWorkflowExecutionData {
   workflowId: string;
@@ -14,16 +14,15 @@ interface UpdateWorkflowExecutionData {
 }
 
 async function createWorkflowExecution(data: CreateWorkflowExecutionData) {
-
   const workflow = await WorkflowRepository.findWorkflowById(data.workflowId);
-  
+
   if (!workflow) {
-    throw new Error("Workflow not found");
+    throw new Error('Workflow not found');
   }
 
   const executionData: CreateExecutionData = {
     workflowId: data.workflowId,
-    status: data.status || "RUNNING",
+    status: data.status || 'RUNNING',
     output: data.output || {},
   };
 
@@ -31,11 +30,10 @@ async function createWorkflowExecution(data: CreateWorkflowExecutionData) {
 }
 
 async function updateWorkflowExecution(executionId: string, data: UpdateWorkflowExecutionData) {
- 
   const existingExecution = await WorkflowRepository.findExecutionById(executionId);
-  
+
   if (!existingExecution) {
-    throw new Error("Execution not found");
+    throw new Error('Execution not found');
   }
 
   const updateData: UpdateExecutionData = {
@@ -48,11 +46,10 @@ async function updateWorkflowExecution(executionId: string, data: UpdateWorkflow
 }
 
 async function deleteWorkflowExecution(executionId: string) {
-
   const existingExecution = await WorkflowRepository.findExecutionById(executionId);
-  
+
   if (!existingExecution) {
-    throw new Error("Execution not found");
+    throw new Error('Execution not found');
   }
 
   return await WorkflowRepository.deleteExecution(executionId);
@@ -60,9 +57,9 @@ async function deleteWorkflowExecution(executionId: string) {
 
 async function getWorkflowExecutionById(executionId: string) {
   const execution = await WorkflowRepository.findExecutionById(executionId);
-  
+
   if (!execution) {
-    throw new Error("Execution not found");
+    throw new Error('Execution not found');
   }
 
   return execution;

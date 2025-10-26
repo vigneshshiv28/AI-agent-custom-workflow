@@ -1,189 +1,198 @@
-import { WorkflowRepository, CreateWorkflowScheduleData } from "../repositories";
-import { ScheduleStatus, ScheduleType } from "@/app/generated/prisma/client";
-import parser from "cron-parser"
-import { DateTime} from "luxon"
-
+import { WorkflowRepository, CreateWorkflowScheduleData } from '../repositories';
+import { ScheduleStatus, ScheduleType } from '@/app/generated/prisma/client';
+import { SchedulerClient, registerScheduleJobSchema } from '../client';
+import parser from 'cron-parser';
+import { DateTime } from 'luxon';
 
 interface CreateWorkflowSchedule {
-    workflowId: string;
-    timezone: string;
-    status: ScheduleStatus;
-    type: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig;
+  workflowId: string;
+  timezone: string;
+  status: ScheduleStatus;
+  type: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig;
 }
 
-
 interface CronScheduleConfig {
-    mode: "CRON";
-    cronExpression: string;
+  mode: 'CRON';
+  cronExpression: string;
 }
 
 interface IntervalScheduleConfig {
-    mode: "INTERVAL";
-    unit: "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS";
-    value: number;
-    time?: string; 
+  mode: 'INTERVAL';
+  unit: 'MINUTES' | 'HOURS' | 'DAYS' | 'WEEKS' | 'MONTHS';
+  value: number;
+  time?: string;
 }
 
 interface CalendarScheduleConfig {
-    mode: "CALENDAR";
-    dateTime: Date; 
+  mode: 'CALENDAR';
+  dateTime: Date;
 }
 
+async function createWorkflowSchedule(schedule: CreateWorkflowSchedule) {
+  const workflow = await WorkflowRepository.findWorkflowById(schedule.workflowId);
 
+  if (!workflow) {
+    throw new Error('Workflow does not exist');
+  }
 
-async function createWorkflowSchedule(schedule: CreateWorkflowSchedule){
-    const workflow = await WorkflowRepository.findWorkflowById(schedule.workflowId)
+  const nextRunAt = calculateNextRunTime(schedule.type, schedule.timezone);
 
-    if(!workflow){
-        throw new Error("Workflow does not exist")
-    }
+  let scheduleData: CreateWorkflowScheduleData = {
+    type: 'CRON' as ScheduleType,
+    workflowId: schedule.workflowId,
+    timezone: schedule.timezone,
+    status: schedule.status,
+    nextRunAt,
+  };
 
-    const nextRunAt = calculateNextRunTime(schedule.type, schedule.timezone);
+  switch (schedule.type.mode) {
+    case 'CRON':
+      scheduleData.type = 'CRON' as ScheduleType;
+      scheduleData.cronExpression = schedule.type.cronExpression;
+      break;
 
-    let scheduleData: CreateWorkflowScheduleData ={
-        type: "CRON" as ScheduleType,
-        workflowId: schedule.workflowId,
-        timezone: schedule.timezone,
-        status: schedule.status,
-        nextRunAt,
-    }
+    case 'INTERVAL':
+      scheduleData.type = 'INTERVAL' as ScheduleType;
+      scheduleData.intervalSeconds = convertIntervalToSeconds(
+        schedule.type.unit,
+        schedule.type.value
+      );
 
-    switch (schedule.type.mode) {
-        case "CRON":
-            scheduleData.type = "CRON" as ScheduleType;
-            scheduleData.cronExpression = schedule.type.cronExpression;
-            break;
+      if (schedule.type.time) {
+        scheduleData.cronExpression = convertIntervalToCron(schedule.type);
+      }
+      break;
 
-        case "INTERVAL":
-            scheduleData.type = "INTERVAL" as ScheduleType;
-            scheduleData.intervalSeconds = convertIntervalToSeconds(
-                schedule.type.unit,
-                schedule.type.value
-            );
+    case 'CALENDAR':
+      scheduleData.type = 'CALENDAR' as ScheduleType;
+      scheduleData.calendarDate = schedule.type.dateTime;
 
-            if (schedule.type.time) {
-                scheduleData.cronExpression = convertIntervalToCron(schedule.type);
-            }
-            break;
+      break;
+  }
 
-        case "CALENDAR":
-            scheduleData.type = "CALENDAR" as ScheduleType;
-            scheduleData.calendarDate = schedule.type.dateTime;
+  const newSchedule = await WorkflowRepository.createWorkflowSchedule(scheduleData);
 
-            break;
-    }
-
-    const newSchedule = await WorkflowRepository.createWorkflowSchedule(scheduleData)
-
-    return newSchedule
+  return newSchedule;
 }
 
+async function registerScheduleJob(job: registerScheduleJobSchema) {
+  try {
+    const response = await SchedulerClient.registerScheduleJob(job);
 
-async function getWorkflowSchedulesByUserId(userId: string){
-    const schedules = await WorkflowRepository.findWorkflowSchedulesByUserId(userId)
-    return schedules
+    return {
+      success: true,
+      message: 'Schedule job registered successfully',
+      data: response,
+    };
+  } catch (error: any) {
+    console.error('Service error registering schedule job:', error);
+
+    return {
+      success: false,
+      message: error.message || 'Failed to register schedule job',
+    };
+  }
 }
 
-async function getWorkflowScheduleById(id: string){
-    const schedule = await WorkflowRepository.findWorkflowScheduleById(id)
-    return schedule
+async function getWorkflowSchedulesByUserId(userId: string) {
+  const schedules = await WorkflowRepository.findWorkflowSchedulesByUserId(userId);
+  return schedules;
 }
 
-async function  deleteWorkflowSchedule(id:string) {
-    const schedule = await WorkflowRepository.deleteWorkflowSchedule(id)
-    return schedule
+async function getWorkflowScheduleById(id: string) {
+  const schedule = await WorkflowRepository.findWorkflowScheduleById(id);
+  return schedule;
+}
+
+async function deleteWorkflowSchedule(id: string) {
+  const schedule = await WorkflowRepository.deleteWorkflowSchedule(id);
+  return schedule;
 }
 
 function calculateNextRunTime(
-    config: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig,
-    timezone: string
-): Date{
+  config: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig,
+  timezone: string
+): Date {
+  const now = DateTime.now().setZone(timezone);
 
-    const now = DateTime.now().setZone(timezone);
-    
-    switch(config.mode){
-        case "CRON": {
-            const interval = parser.parse(config.cronExpression,{tz:timezone})
-            return interval.next().toDate()
-        }
-        case "INTERVAL": {
-
-            if (config.time) {
-                const [hours, minutes] = config.time.split(":").map(Number);
-                let nextRun = now.set({ hour: hours, minute: minutes, second: 0 });
-
-                if (nextRun <= now) {
-                    nextRun = addInterval(nextRun, config.unit, config.value);
-                }
-                return nextRun.toJSDate();
-            }
-
-            return addInterval(now, config.unit, config.value).toJSDate();
-        }
-        case "CALENDAR":{
-            return config.dateTime
-        }
+  switch (config.mode) {
+    case 'CRON': {
+      const interval = parser.parse(config.cronExpression, { tz: timezone });
+      return interval.next().toDate();
     }
+    case 'INTERVAL': {
+      if (config.time) {
+        const [hours, minutes] = config.time.split(':').map(Number);
+        let nextRun = now.set({ hour: hours, minute: minutes, second: 0 });
+
+        if (nextRun <= now) {
+          nextRun = addInterval(nextRun, config.unit, config.value);
+        }
+        return nextRun.toJSDate();
+      }
+
+      return addInterval(now, config.unit, config.value).toJSDate();
+    }
+    case 'CALENDAR': {
+      return config.dateTime;
+    }
+  }
 }
 
-
 function addInterval(
-    dateTime: DateTime,
-    unit: "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-    value: number
+  dateTime: DateTime,
+  unit: 'MINUTES' | 'HOURS' | 'DAYS' | 'WEEKS' | 'MONTHS',
+  value: number
 ): DateTime {
-    switch (unit) {
-        case "MINUTES":
-            return dateTime.plus({ minutes: value });
-        case "HOURS":
-            return dateTime.plus({ hours: value });
-        case "DAYS":
-            return dateTime.plus({ days: value });
-        case "WEEKS":
-            return dateTime.plus({ weeks: value });
-        case "MONTHS":
-            return dateTime.plus({ months: value });
-    }
+  switch (unit) {
+    case 'MINUTES':
+      return dateTime.plus({ minutes: value });
+    case 'HOURS':
+      return dateTime.plus({ hours: value });
+    case 'DAYS':
+      return dateTime.plus({ days: value });
+    case 'WEEKS':
+      return dateTime.plus({ weeks: value });
+    case 'MONTHS':
+      return dateTime.plus({ months: value });
+  }
 }
 
 function convertIntervalToSeconds(
-    unit: "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-    value: number
+  unit: 'MINUTES' | 'HOURS' | 'DAYS' | 'WEEKS' | 'MONTHS',
+  value: number
 ): number {
-    const secondsMap = {
-        MINUTES: 60,
-        HOURS: 3600,
-        DAYS: 86400,
-        WEEKS: 604800,
-        MONTHS: 2592000, 
-    };
-    return secondsMap[unit] * value;
+  const secondsMap = {
+    MINUTES: 60,
+    HOURS: 3600,
+    DAYS: 86400,
+    WEEKS: 604800,
+    MONTHS: 2592000,
+  };
+  return secondsMap[unit] * value;
 }
 
 function convertIntervalToCron(config: IntervalScheduleConfig): string {
-    if (!config.time) return "";
+  if (!config.time) return '';
 
-    const [hours, minutes] = config.time.split(":").map(Number);
+  const [hours, minutes] = config.time.split(':').map(Number);
 
-    switch (config.unit) {
-        case "DAYS":
-            return `${minutes} ${hours} */${config.value} * *`; 
-        case "WEEKS":
-            return `${minutes} ${hours} * * 0`; 
-        case "MONTHS":
-            return `${minutes} ${hours} 1 */${config.value} *`; 
-        default:
-            return "";
-    }
+  switch (config.unit) {
+    case 'DAYS':
+      return `${minutes} ${hours} */${config.value} * *`;
+    case 'WEEKS':
+      return `${minutes} ${hours} * * 0`;
+    case 'MONTHS':
+      return `${minutes} ${hours} 1 */${config.value} *`;
+    default:
+      return '';
+  }
 }
 
 export const ScheduleService = {
-    createWorkflowSchedule,
-    getWorkflowSchedulesByUserId,
-    getWorkflowScheduleById,
-    deleteWorkflowSchedule
-} 
-
-
-
-
+  createWorkflowSchedule,
+  registerScheduleJob,
+  getWorkflowSchedulesByUserId,
+  getWorkflowScheduleById,
+  deleteWorkflowSchedule,
+};

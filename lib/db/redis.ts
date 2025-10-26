@@ -1,7 +1,7 @@
-import Redis from "ioredis";
+import Redis from 'ioredis';
 
 const redis = new Redis({
-    host:Bun.env.REDIS_HOST
-})
+  host: Bun.env.REDIS_HOST,
+});
 
-export default redis
+export default redis;
