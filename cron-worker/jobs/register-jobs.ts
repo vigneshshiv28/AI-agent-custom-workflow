@@ -76,8 +76,8 @@ export async function registerJob(c: Context) {
           });
         });
   
-  
-      } else if (job.scheduleMode === "CALENDAR") {
+        return c.json({ message: "Scheduled job successfully", status: 201 });
+      } else  {
 
           if (!job.scheduleTime) {
             return c.json({ message: "Missing scheduleTime", status: 400 });
@@ -106,10 +106,12 @@ export async function registerJob(c: Context) {
 
             console.log(`Successfully  enqueued job to ${jobId}`)
           }, delay);
+
+          return c.json({ message: "Invalid Job request", status: 400 });
               
       }
 
-      return c.json({ message: "Scheduled job successfully", status: 201 });
+     
 
       } catch (error) {
         console.error(error);

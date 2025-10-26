@@ -21,6 +21,7 @@ export interface CreateWorkflowScheduleData {
   calendarDate?: Date;
   timezone: string;
   status: ScheduleStatus;
+  isScheduled: boolean,
   nextRunAt: Date;
 }
 
@@ -30,6 +31,7 @@ export interface UpdateWorkflowScheduleData {
   status?: ScheduleStatus;
   nextRunAt?: Date;
   lastRunAt?: Date;
+  isScheduled?: boolean;
 }
 
 export interface CreateExecutionData {
@@ -142,6 +144,7 @@ export async function createWorkflowSchedule(data: CreateWorkflowScheduleData) {
       cronExpression: data.cronExpression ?? null,
       intervalSeconds: data.intervalSeconds ?? null,
       intervalConfig: data.intervalConfig ?? Prisma.DbNull,
+      isScheduled: data.isScheduled,
       calendarDate: data.calendarDate ?? null,
     },
     include: {
@@ -164,6 +167,7 @@ async function updateWorkflowSchedule(id: string, data: UpdateWorkflowScheduleDa
       ...(data.status && { status: data.status }),
       ...(data.nextRunAt && { nextRunAt: data.nextRunAt }),
       ...(data.lastRunAt && { lastRunAt: data.lastRunAt }),
+      ...(data.isScheduled && { isScheduled: data.isScheduled}),
     },
     include: {
       workflow: {

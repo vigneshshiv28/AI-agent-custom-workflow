@@ -70,28 +70,44 @@ export async function POST(
     // Ideally this should just pub-sub model but for simplicity this is an api call for now
     let jobBody;
     if(schedule.type === "CRON" || schedule.type === "INTERVAL"){
-      jobBody = {
-        userId: session.user.id,
-        workflowId: workflowId,
-        scheduleId: schedule.id,
-        scheduleMode: schedule.type,
-        workflow: workflow.workflow,
-        ...(schedule.cronExpression ? { cronExpression: schedule.cronExpression } : {})
+      
+    
+      if(!schedule.isScheduled){
+
+
+        jobBody = {
+          userId: session.user.id,
+          workflowId: workflowId,
+          scheduleId: schedule.id,
+          scheduleMode: schedule.type,
+          workflow: workflow.workflow,
+          ...(schedule.cronExpression ? { cronExpression: schedule.cronExpression } : {})
+        }
+      
+        try {
+      
+          await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule:true});
+      
+          const jobResponse = await ScheduleService.registerScheduleJob(jobBody);
+      
+          if(!jobResponse.success){
+           
+            await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule:false});
+            throw new Error("Failed to register job");
+          }
+      
+          console.log(`Schedule ${schedule.id} has been scheduled to execute`);
+      
+        } catch(error) {
+          console.error("Unable to schedule the job:", error);
+          await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule: false});
+
+        }
       }
-    }else {
-      jobBody = {
-        userId: session.user.id,
-        workflowId: workflowId,
-        scheduleId: schedule.id,
-        scheduleMode: schedule.type,
-        workflow: workflow.workflow,
-        ...(schedule.calendarDate ? { scheduleTime: schedule.calendarDate.toISOString() } : {})
-      }
+  
     }
 
-
-
-    const jobResponse = ScheduleService.registerScheduleJob(jobBody)
+    
 
     return NextResponse.json(schedule, { status: 201 });
   } catch (error) {

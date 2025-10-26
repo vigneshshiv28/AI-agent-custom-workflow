@@ -1,4 +1,4 @@
-import { WorkflowRepository, CreateWorkflowScheduleData } from '../repositories';
+import { WorkflowRepository, CreateWorkflowScheduleData, UpdateWorkflowScheduleData } from '../repositories';
 import { ScheduleStatus, ScheduleType } from '@/app/generated/prisma/client';
 import { SchedulerClient, registerScheduleJobSchema } from '../client';
 import parser from 'cron-parser';
@@ -9,6 +9,12 @@ interface CreateWorkflowSchedule {
   timezone: string;
   status: ScheduleStatus;
   type: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig;
+}
+
+interface UpdateWorkflowSchedule{
+  timezone?: string; 
+  isSchedule?: boolean;
+  type?: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig;
 }
 
 interface CronScheduleConfig {
@@ -42,6 +48,7 @@ async function createWorkflowSchedule(schedule: CreateWorkflowSchedule) {
     workflowId: schedule.workflowId,
     timezone: schedule.timezone,
     status: schedule.status,
+    isScheduled: false,
     nextRunAt,
   };
 
@@ -108,6 +115,51 @@ async function deleteWorkflowSchedule(id: string) {
   const schedule = await WorkflowRepository.deleteWorkflowSchedule(id);
   return schedule;
 }
+
+async function updateWorkflowScheduleById(
+  scheduleId: string,
+  schedule: UpdateWorkflowSchedule
+) {
+  const existingSchedule = await WorkflowRepository.findWorkflowScheduleById(scheduleId);
+
+  if (!existingSchedule) {
+    throw new Error("Schedule does not exist");
+  }
+
+  const updateData: UpdateWorkflowScheduleData = {};
+
+
+  if (schedule.timezone) {
+    updateData.timezone = schedule.timezone;
+  }
+
+
+  if (typeof schedule.isSchedule === "boolean") {
+    updateData.isScheduled = schedule.isSchedule;
+  }
+
+
+  if (schedule.type) {
+    switch (schedule.type.mode) {
+      case "CRON":
+        updateData.cronExpression = schedule.type.cronExpression;
+        break;
+
+      case "INTERVAL":
+        updateData.cronExpression = convertIntervalToCron(schedule.type);
+        break;
+
+      case "CALENDAR":
+        updateData.nextRunAt = schedule.type.dateTime;
+        break;
+    }
+  }
+
+ 
+  const updated = await WorkflowRepository.updateWorkflowSchedule(scheduleId, updateData);
+  return updated;
+}
+
 
 function calculateNextRunTime(
   config: CronScheduleConfig | IntervalScheduleConfig | CalendarScheduleConfig,
@@ -192,6 +244,7 @@ function convertIntervalToCron(config: IntervalScheduleConfig): string {
 export const ScheduleService = {
   createWorkflowSchedule,
   registerScheduleJob,
+  updateWorkflowScheduleById,
   getWorkflowSchedulesByUserId,
   getWorkflowScheduleById,
   deleteWorkflowSchedule,

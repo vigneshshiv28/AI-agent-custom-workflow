@@ -93,6 +93,7 @@ model WorkflowSchedule {
   calendarDate     DateTime?        
   timezone         String?          @default("UTC")
   status           ScheduleStatus   @default(ACTIVE) 
+  isScheduled      Boolean          @default(false)
   nextRunAt        DateTime
   lastRunAt        DateTime?
   workflow         Workflow         @relation(fields: [workflowId], references: [id])
