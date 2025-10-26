@@ -1,12 +1,15 @@
+
+
 export interface registerScheduleJobSchema {
   userId: string;
   workflowId: string;
   scheduleId: string;
-  scheduleMode: string;
-  cronExpression?: string;
-  scheduleTime: string;
+  scheduleMode: 'CRON' | 'INTERVAL' | 'CALENDAR';
+  cronExpression?: string; 
+  scheduleTime?: string;   
   workflow: any;
 }
+
 
 async function registerScheduleJob(body: registerScheduleJobSchema) {
   const schedulerUrl = process.env.SCHEDULER_URL;

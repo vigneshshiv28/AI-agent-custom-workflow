@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { ScheduleStatus } from '@/app/generated/prisma/enums';
 import { ScheduleService, WorkflowService } from '@/lib/services';
 
+
 const CronScheduleConfigSchema = z.object({
   mode: z.literal('CRON'),
   cronExpression: z.string().min(1, 'Cron expression is required'),
@@ -67,14 +68,30 @@ export async function POST(
       workflowId,
     });
     // Ideally this should just pub-sub model but for simplicity this is an api call for now
+    let jobBody;
+    if(schedule.type === "CRON" || schedule.type === "INTERVAL"){
+      jobBody = {
+        userId: session.user.id,
+        workflowId: workflowId,
+        scheduleId: schedule.id,
+        scheduleMode: schedule.type,
+        workflow: workflow.workflow,
+        ...(schedule.cronExpression ? { cronExpression: schedule.cronExpression } : {})
+      }
+    }else {
+      jobBody = {
+        userId: session.user.id,
+        workflowId: workflowId,
+        scheduleId: schedule.id,
+        scheduleMode: schedule.type,
+        workflow: workflow.workflow,
+        ...(schedule.calendarDate ? { scheduleTime: schedule.calendarDate.toISOString() } : {})
+      }
+    }
 
-    const jobBody = {
-      userId: session.user.id,
-      workflowId: workflowId,
-      scheduleId: schedule.id,
-      scheduleMode: schedule.type,
-      workflow: workflow.workflow,
-    };
+
+
+    const jobResponse = ScheduleService.registerScheduleJob(jobBody)
 
     return NextResponse.json(schedule, { status: 201 });
   } catch (error) {
