@@ -1,5 +1,6 @@
 import redis from '@/lib/db/redis';
 import { ExecutionService, CreateWorkflowExecutionData } from '@/lib/services';
+import { workflowSchema } from '@/app/api/workflow/route';
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
 const WORKERS_COUNT = parseInt(process.env.WORKFLOW_WORKER_COUNT || '10');

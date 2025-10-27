@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Context } from "hono";
 import cron from "node-cron";
 import { setWorkflowCronJob, Job } from "../utils";
+import { workflowSchema } from "@/app/api/workflow/route";
 
 
 const registerJobSchema = z.object({
@@ -11,7 +12,7 @@ const registerJobSchema = z.object({
   scheduleMode: z.enum(["CRON","INTERVAL","CALENDAR"]),
   cronExpression: z.string().optional(),
   scheduleTime: z.string().optional(),
-  workflow: z.any()
+  workflow: workflowSchema,
 });
 
 export async function registerJob(c: Context) {

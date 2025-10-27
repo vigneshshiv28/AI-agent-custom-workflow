@@ -3,9 +3,45 @@ import { NextResponse } from 'next/server';
 import { WorkflowService } from '@/lib/services';
 import { z } from 'zod';
 
-const createWorkflowSchema = z.object({
-  name: z.string().min(1),
-  workflow: z.any(),
+const nodeSchema = z.object({
+  id: z.string(),
+  type: z.string(), 
+  data: z.record(z.string(),z.any()).optional(),
+  position: z.object({
+    x: z.number(),
+    y: z.number(),
+  }),
+});
+
+const edgeSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  target: z.string(),
+  sourceHandle: z.string().optional(),
+  targetHandle: z.string().optional(),
+});
+
+const viewportSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  zoom: z.number(),
+});
+
+const graphSchema = z.object({
+  nodes: z.array(nodeSchema),
+  edges: z.array(edgeSchema),
+  viewport: viewportSchema.optional(),
+});
+
+export const workflowSchema = z.object({
+  conversation_variables: z.array(z.any()).optional(),
+  features: z.record(z.string(),z.any()).optional(),
+  graph: graphSchema,
+});
+
+export const createWorkflowSchema = z.object({
+  name: z.string().min(1, "Workflow name is required"),
+  workflow: workflowSchema,
 });
 
 export async function POST(request: Request) {

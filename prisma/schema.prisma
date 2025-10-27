@@ -100,7 +100,7 @@ model WorkflowSchedule {
 
   @@index([workflowId])
   @@index([nextRunAt])
-  @@index([status, nextRunAt])
+  @@index([status, nextRunAt]) 
 }
 
 model WorkflowExecution {

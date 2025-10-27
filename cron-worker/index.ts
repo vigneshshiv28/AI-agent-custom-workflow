@@ -70,7 +70,11 @@ async function scheduleWorkflowJobs(){
     
     for (const schedule of cronSchedules) {
       try {
-        await setWorkflowCronJob(schedule.cronExpression!, {
+        if(!schedule.cronExpression){
+          console.log("Empty cron expression")
+          continue
+        }
+        await setWorkflowCronJob(schedule.cronExpression, {
           userId: schedule.workflow.userId,
           workflowId: schedule.workflowId,
           scheduleId: schedule.id,
