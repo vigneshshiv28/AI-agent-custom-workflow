@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { Context } from "hono";
 import cron from "node-cron";
-import redis from "@/lib/db/redis";
+import { setWorkflowCronJob, Job } from "../utils";
+
 
 const registerJobSchema = z.object({
   userId: z.string(),
@@ -12,30 +13,6 @@ const registerJobSchema = z.object({
   scheduleTime: z.string().optional(),
   workflow: z.any()
 });
-
-const STREAM_KEY= process.env.WORKFLOW_EXECUTION_STREAM || ""
-
-async function sendToQueue(data: any){
-  try{
-    
-    if(STREAM_KEY === "" ){
-      throw new Error("Empty stream key or group name")
-    }
-
-    const jobId = await redis.xadd(
-      STREAM_KEY,
-      "*",
-      "event",data.event,
-      "data",JSON.stringify(data.data),
-    )
-
-    return jobId
-  }catch(error){
-    console.log("Error sedning data to stream", error)
-    throw error
-  }
-}
-
 
 export async function registerJob(c: Context) {
     const body = await c.req.json();
@@ -59,59 +36,20 @@ export async function registerJob(c: Context) {
             status: 400
           });
         }
-  
-        cron.schedule(job.cronExpression, async () => {
-          const now = new Date().toISOString();
-          console.log(`Executing job ${job.scheduleId} at ${now}`);
-          
-          await sendToQueue({
-            event: "RUN_WORKFLOW",
-            data: {
-              userId: job.userId,
-              workflowId: job.workflowId,
-              scheduleId: job.scheduleId,
-              triggeredAt: new Date().toISOString(),
-              workflow: job.workflow
-            }
-          });
-        });
+
+        setWorkflowCronJob(job.cronExpression,{
+          userId: job.userId,
+          workflowId: job.workflowId,
+          scheduleId: job.scheduleId,
+          workflow: job.workflow,
+        })
+
   
         return c.json({ message: "Scheduled job successfully", status: 201 });
       } else  {
-
-          if (!job.scheduleTime) {
-            return c.json({ message: "Missing scheduleTime", status: 400 });
-          }
-    
-          const delay = new Date(job.scheduleTime).getTime() - Date.now();
-
-          console.log(`delay ${delay}`)
-          if (delay <= 0) {
-            return c.json({ message: "Schedule time must be in the future", status: 400 });
-          }
-    
-          setTimeout(async () => {
-            console.log(`Executing one-time job ${job.scheduleId}`);
-            
-            const jobId = await sendToQueue({
-              event: "RUN_WORKFLOW",
-              data: {
-                userId: job.userId,
-                workflowId: job.workflowId,
-                scheduleId: job.scheduleId,
-                triggeredAt: new Date().toISOString(),
-                workflow: job.workflow
-              }
-            });
-
-            console.log(`Successfully  enqueued job to ${jobId}`)
-          }, delay);
-
           return c.json({ message: "Invalid Job request", status: 400 });
               
       }
-
-     
 
       } catch (error) {
         console.error(error);

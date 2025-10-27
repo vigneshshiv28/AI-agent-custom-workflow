@@ -1,13 +1,13 @@
 import { WorkflowRepository, CreateExecutionData, UpdateExecutionData } from '../repositories';
 import { WorkflowStatus } from '@/app/generated/prisma/client';
 
-interface CreateWorkflowExecutionData {
+export interface CreateWorkflowExecutionData {
   workflowId: string;
   status?: WorkflowStatus;
   output?: any;
 }
 
-interface UpdateWorkflowExecutionData {
+export interface UpdateWorkflowExecutionData {
   status?: WorkflowStatus;
   endedAt?: Date;
   output?: any;

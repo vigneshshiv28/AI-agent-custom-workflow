@@ -109,7 +109,7 @@ model WorkflowExecution {
   startedAt  DateTime       @default(now())
   endedAt    DateTime?
   status     WorkflowStatus
-  output     Json
+  output     Json?
   workflow   Workflow       @relation(fields: [workflowId], references: [id])
 
   @@index([workflowId])

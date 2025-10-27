@@ -1,15 +1,34 @@
 import redis from '@/lib/db/redis';
+import { ExecutionService, CreateWorkflowExecutionData } from '@/lib/services';
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
 const WORKERS_COUNT = parseInt(process.env.WORKFLOW_WORKER_COUNT || '10');
 const GROUP_NAME = process.env.WORKFLOW_EXECUTION_GROUP || '';
 
-async function execute_workflow(workflow: any) {
-  setTimeout(() => {
-    console.log('executing workflow...', workflow.workflowId);
+interface Workflow{
+  workflowId: string,
+  workflow: any,
+  status:   "RUNNING" | "SUCCESS" | "FAILED"
+}
+
+async function execute_workflow(workflow: Workflow) {
+
+  const workflowExecution:CreateWorkflowExecutionData = {
+    workflowId: workflow.workflowId,
+    status: workflow.status,
+
+  }
+
+  const executingWorkflow = await ExecutionService.createWorkflowExecution(workflowExecution)
+
+
+  console.log('executing workflow...', workflow.workflowId);
+    
+  setTimeout(async () => {
+    console.log("Workflow Execution completed")
+    await ExecutionService.updateWorkflowExecution(executingWorkflow.id,{status:"SUCCESS"})  
   }, 5000);
 
-  console.log('worklow executed');
 }
 
 async function initializeConsumerGroup() {
@@ -80,7 +99,7 @@ async function worker(workerId: number) {
             await execute_workflow(parsedData);
 
             await redis.xack(STREAM_KEY, GROUP_NAME, messageId);
-          }
+          }      
         }
       }
     }
