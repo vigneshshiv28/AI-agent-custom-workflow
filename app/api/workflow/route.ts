@@ -13,6 +13,8 @@ const nodeSchema = z.object({
   }),
 });
 
+export type Node = z.infer<typeof nodeSchema> 
+
 const edgeSchema = z.object({
   id: z.string(),
   source: z.string(),
@@ -20,6 +22,8 @@ const edgeSchema = z.object({
   sourceHandle: z.string().optional(),
   targetHandle: z.string().optional(),
 });
+
+export type Edge = z.infer<typeof edgeSchema>
 
 const viewportSchema = z.object({
   x: z.number(),
@@ -38,6 +42,9 @@ export const workflowSchema = z.object({
   features: z.record(z.string(),z.any()).optional(),
   graph: graphSchema,
 });
+
+export type Workflow = z.infer<typeof workflowSchema>;
+ 
 
 export const createWorkflowSchema = z.object({
   name: z.string().min(1, "Workflow name is required"),

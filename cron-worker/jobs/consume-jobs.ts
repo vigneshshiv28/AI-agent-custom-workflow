@@ -1,18 +1,18 @@
 import redis from '@/lib/db/redis';
 import { ExecutionService, CreateWorkflowExecutionData } from '@/lib/services';
-import { workflowSchema } from '@/app/api/workflow/route';
+import { Workflow } from '@/app/api/workflow/route';
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
 const WORKERS_COUNT = parseInt(process.env.WORKFLOW_WORKER_COUNT || '10');
 const GROUP_NAME = process.env.WORKFLOW_EXECUTION_GROUP || '';
 
-interface Workflow{
+interface WorkflowData{
   workflowId: string,
-  workflow: any,
+  workflow: Workflow,
   status:   "RUNNING" | "SUCCESS" | "FAILED"
 }
 
-async function execute_workflow(workflow: Workflow) {
+async function execute_workflow(workflow: WorkflowData) {
 
   const workflowExecution:CreateWorkflowExecutionData = {
     workflowId: workflow.workflowId,
