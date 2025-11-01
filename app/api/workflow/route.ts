@@ -37,6 +37,8 @@ const graphSchema = z.object({
   viewport: viewportSchema.optional(),
 });
 
+export type Graph = z.infer<typeof graphSchema>
+
 export const workflowSchema = z.object({
   conversation_variables: z.array(z.any()).optional(),
   features: z.record(z.string(),z.any()).optional(),
