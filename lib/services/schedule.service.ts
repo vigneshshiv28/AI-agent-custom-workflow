@@ -31,7 +31,7 @@ interface IntervalScheduleConfig {
 
 interface CalendarScheduleConfig {
   mode: 'CALENDAR';
-  dateTime: Date;
+  dateTime: string;
 }
 
 async function createWorkflowSchedule(schedule: CreateWorkflowSchedule) {
@@ -72,8 +72,7 @@ async function createWorkflowSchedule(schedule: CreateWorkflowSchedule) {
 
     case 'CALENDAR':
       scheduleData.type = 'CALENDAR' as ScheduleType;
-      scheduleData.calendarDate = schedule.type.dateTime;
-
+      scheduleData.calendarDate = new Date(schedule.type.dateTime);
       break;
   }
 
@@ -150,7 +149,7 @@ async function updateWorkflowScheduleById(
         break;
 
       case "CALENDAR":
-        updateData.nextRunAt = schedule.type.dateTime;
+        updateData.nextRunAt = new Date(schedule.type.dateTime);
         break;
     }
   }
@@ -186,7 +185,9 @@ function calculateNextRunTime(
       return addInterval(now, config.unit, config.value).toJSDate();
     }
     case 'CALENDAR': {
-      return config.dateTime;
+      const localDateTime = DateTime.fromISO(config.dateTime, { zone: timezone });
+      return localDateTime.toUTC().toJSDate();
+    
     }
   }
 }

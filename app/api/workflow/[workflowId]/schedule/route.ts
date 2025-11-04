@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { ScheduleStatus } from '@/app/generated/prisma/enums';
 import { ScheduleService, WorkflowService } from '@/lib/services';
+import { registerScheduleJobSchema } from '@/lib/client';
 
 
 const CronScheduleConfigSchema = z.object({
@@ -22,7 +23,7 @@ const IntervalScheduleConfigSchema = z.object({
 
 const CalendarScheduleConfigSchema = z.object({
   mode: z.literal('CALENDAR'),
-  dateTime: z.coerce.date(),
+  dateTime: z.string(),
 });
 
 const ScheduleTypeSchema = z.discriminatedUnion('mode', [
@@ -68,48 +69,62 @@ export async function POST(
       workflowId,
     });
     // Ideally this should just pub-sub model but for simplicity this is an api call for now
-    let jobBody;
-    if(schedule.type === "CRON" || schedule.type === "INTERVAL"){
-      
-    
-      if(!schedule.isScheduled){
+    let jobBody:registerScheduleJobSchema;
+   
+    if(!schedule.isScheduled){
+   
 
-
-        jobBody = {
-          userId: session.user.id,
-          workflowId: workflowId,
-          scheduleId: schedule.id,
-          scheduleMode: schedule.type,
-          workflow: workflow.workflow,
-          ...(schedule.cronExpression ? { cronExpression: schedule.cronExpression } : {})
-        }
-      
-        try {
-      
-          await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule:true});
-      
-          const jobResponse = await ScheduleService.registerScheduleJob(jobBody);
-      
-          if(!jobResponse.success){
-           
-            await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule:false});
-            throw new Error("Failed to register job");
-          }
-      
-          console.log(`Schedule ${schedule.id} has been scheduled to execute`);
-      
-        } catch(error) {
-          console.error("Unable to schedule the job:", error);
-          await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule: false});
-
-        }
+      jobBody = {
+        userId: session.user.id,
+        workflowId: workflowId,
+        scheduleId: schedule.id,
+        scheduleMode: schedule.type,
+        workflow: workflow.workflow,
       }
-  
+
+      switch (schedule.type) {
+        case "CRON":
+          if(!schedule.cronExpression){
+            return
+          }
+          jobBody.cronExpression = schedule.cronExpression;
+          break;
+      
+      
+        case "CALENDAR":
+          if(!schedule.calendarDate){
+            return
+          }
+          jobBody.scheduleTime = schedule.nextRunAt.toISOString();
+          break;
+      
+        default:
+          throw new Error(`Unsupported schedule type: ${schedule.type}`);
+      }
+    
+      try {
+    
+        await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule:true});
+        
+        const jobResponse = await ScheduleService.registerScheduleJob(jobBody);
+    
+        if(!jobResponse.success){
+          await ScheduleService.updateWorkflowScheduleById(schedule. id, {isSchedule:false});
+          throw new Error("Failed to register job");
+        }
+    
+        console.log(`Schedule ${schedule.id} has been scheduled to execute`);
+    
+      } catch(error) {
+        console.error("Unable to schedule the job:", error);
+        await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule: false});
+
+      }
     }
 
+    const registedSchedule = await ScheduleService.getWorkflowScheduleById(schedule.id)
     
-
-    return NextResponse.json(schedule, { status: 201 });
+    return NextResponse.json(registedSchedule, { status: 201 });
   } catch (error) {
     console.error('Error creating schedule:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

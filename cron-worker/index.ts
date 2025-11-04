@@ -44,7 +44,6 @@ async function scheduleWorkflowJobs(){
   try{
     const cronSchedules = await prisma.workflowSchedule.findMany({
       where:{
-        isScheduled: false,
         type: { in: ["CRON", "INTERVAL"] },
       },
       include:{workflow: true}

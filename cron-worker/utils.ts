@@ -10,7 +10,7 @@ export interface Job{
 
 export interface ScheduledJob extends Job {
     scheduleTime: string; 
-  }
+}
 
 
 const STREAM_KEY= process.env.WORKFLOW_EXECUTION_STREAM || ""
