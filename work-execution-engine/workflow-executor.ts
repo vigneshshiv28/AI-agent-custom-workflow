@@ -1,7 +1,8 @@
 
 import { Workflow,Node } from "@/app/api/workflow/route";
+import { runWeatherAgent, runSummarizer } from "./agents";
 
-class WorkflowExecutor{
+export class WorkflowExecutor{
     private workflow:Workflow;
     private redis: any; 
     private graph:Map<Node,Node[]>;
@@ -41,11 +42,11 @@ class WorkflowExecutor{
 
 
     private findStartNode(){
-        const startNode = this.workflow.graph.nodes.find((n) => n.type === "Start")
+        const startNode = this.workflow.graph.nodes.find((n) => n.type === "start")
         return startNode || null
     }
 
-    async executeWorkflow(){
+    public async executeWorkflow(){
         const queue: Node[] = []
         if(!this.startNode){
             throw new Error("Workflow is invalid no starting node found")
@@ -57,11 +58,14 @@ class WorkflowExecutor{
             if(!node){
                 throw new Error("Invalid node")
             }
-            await this.processNode(node)
+            const res = await this.processNode(node)
 
 			const children = this.graph.get(node) ?? []
 			for(const child of children){
-				queue.push(child)
+                if(child.data){
+                    child.data["previousInput"] = res
+                    queue.push(child)
+                }
 			}
         }
     }
@@ -69,18 +73,35 @@ class WorkflowExecutor{
     async processNode(node:Node){
 
         switch(node.type){
-            case "Start":
+            case "start":
                 console.log("executing start node")
-            case "Agent":
-                console.log("executing agent node")
+                return ""
+                
+            case "weather_agent":
+                console.log("executing weather agent node")
+                
+                const weatherResult = await runWeatherAgent(
+                    node.data?.userPrompt ?? "",
+                    node.data?.previousInput ?? ""
+                  );
+
+                console.log("weather result",weatherResult)
+                return weatherResult
+                
+            case "summarizer_agent":
+                console.log("executing summarizer agent node")
+                const summarizerResult  = await runSummarizer(
+                    node.data?.userPrompt ?? "",
+                    node.data?.previousInput ?? ""
+                )
+                console.log("summary result",summarizerResult)
+                return summarizerResult
+                
             case "Conditional":
                 console.log("executing conditional node")
+                break
+            default:
+                throw new Error("Invalid Node type")
         }
-
-        setTimeout(()=>{
-            console.log("Processed node successfully" )
-        },5000)
-
-
     }
 }

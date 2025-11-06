@@ -1,6 +1,7 @@
 import redis from '@/lib/db/redis';
 import { ExecutionService, CreateWorkflowExecutionData } from '@/lib/services';
 import { Workflow } from '@/app/api/workflow/route';
+import { WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
 const WORKERS_COUNT = parseInt(process.env.WORKFLOW_WORKER_COUNT || '10');
@@ -13,22 +14,23 @@ interface WorkflowData{
 }
 
 async function execute_workflow(workflow: WorkflowData) {
-
-  const workflowExecution:CreateWorkflowExecutionData = {
-    workflowId: workflow.workflowId,
-    status: workflow.status,
-
-  }
-
-  const executingWorkflow = await ExecutionService.createWorkflowExecution(workflowExecution)
-
-
-  console.log('executing workflow...', workflow.workflowId);
+  try{
+    const workflowExecution:CreateWorkflowExecutionData = {
+      workflowId: workflow.workflowId,
+      status: workflow.status,
+  
+    }
+  
+    const executingWorkflow = await ExecutionService.createWorkflowExecution(workflowExecution)
+    console.log('executing workflow...', workflow.workflowId);
+  
+    const workflowExecutor = new WorkflowExecutor(workflow.workflow,redis)
+    await workflowExecutor.executeWorkflow()
     
-  setTimeout(async () => {
-    console.log("Workflow Execution completed")
-    await ExecutionService.updateWorkflowExecution(executingWorkflow.id,{status:"SUCCESS"})  
-  }, 5000);
+    console.log("Workflow executed successfully")  
+  }catch(error){
+    console.log(error)
+  }
 
 }
 

@@ -6,7 +6,7 @@ import { z } from 'zod';
 const nodeSchema = z.object({
   id: z.string(),
   type: z.string(), 
-  data: z.record(z.string(),z.any()).optional(),
+  data: z.record(z.string(),z.any()),
   position: z.object({
     x: z.number(),
     y: z.number(),
