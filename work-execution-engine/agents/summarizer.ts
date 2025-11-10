@@ -1,10 +1,21 @@
 import {google} from "@ai-sdk/google"
-import { streamText,generateText,tool } from 'ai';
+import { generateText } from 'ai';
+import { AgentNodeOutput } from "../type";
 
 
-export async function runSummarizer(userPrompt:string = "", nodeInput:string = ""){
+export async function runSummarizer(userPrompt:string = "", nodeInput:AgentNodeOutput){
 
-    const prompt = userPrompt+nodeInput
+    const prompt = `
+    ===== INPUT =====
+    Text Content:
+    ${nodeInput?.text ?? ""}
+
+    Structured Data:
+    ${JSON.stringify(nodeInput?.data ?? {}, null, 2)}
+
+    ===== TASK =====
+    ${userPrompt}
+  `;
 
     const result = await  generateText({
         model: google("gemini-2.5-flash"),
@@ -12,6 +23,11 @@ export async function runSummarizer(userPrompt:string = "", nodeInput:string = "
         prompt: prompt
     })
 
-    return result.text
+    const toolCall = result.toolResults[0].output
+
+    return {
+        text: result.text,
+        data: toolCall ? toolCall:{}  
+    }
 }
 

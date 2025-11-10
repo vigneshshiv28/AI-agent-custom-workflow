@@ -21,6 +21,9 @@ const edgeSchema = z.object({
   target: z.string(),
   sourceHandle: z.string().optional(),
   targetHandle: z.string().optional(),
+  data: z.object({
+    branchPath: z.enum(["true", "false"]).optional(), 
+  }).optional(),
 });
 
 export type Edge = z.infer<typeof edgeSchema>

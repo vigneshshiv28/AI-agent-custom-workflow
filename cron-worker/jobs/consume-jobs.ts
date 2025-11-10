@@ -3,8 +3,8 @@ import { WorkflowService } from '@/lib/services';
 import { ExecutionService, CreateWorkflowExecutionData } from '@/lib/services';
 import { workflowSchema } from '@/app/api/workflow/route';
 import { WorkflowQueueMessage } from '../types';
-import { WorkflowExecutorEvent,WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
-
+import { WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
+import { WorkflowExecutorEvent } from '@/work-execution-engine/type';
 
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
@@ -29,7 +29,7 @@ async function emitter(event: WorkflowExecutorEvent) {
         event.executionId,
         event.nodeId,
         event.nodeType,
-        event.output
+        event.result
       );
       break;
 

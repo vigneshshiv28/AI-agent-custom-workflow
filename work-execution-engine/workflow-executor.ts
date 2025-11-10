@@ -1,61 +1,15 @@
 
 import { Workflow,Node } from "@/app/api/workflow/route";
 import { runWeatherAgent, runSummarizer } from "./agents";
+import { AgentNodeOutput, ConditionNodeOutput, WorkflowExecutorEvent } from "./type";
 
 
-export type WorkflowExecutorEvent =
-  | {
-      type: "node:start";
-      executionId: string;
-      userId: string;
-      workflowId: string;
-      nodeId: string;
-      nodeType: string;
-      input?: any;
-      timestamp: number;
-    }
-  | {
-      type: "node:success";
-      executionId: string;
-      userId: string;
-      workflowId: string;
-      nodeId: string;
-      nodeType: string;
-      output: any;
-      timestamp: number;
-    }
-  | {
-      type: "node:error";
-      executionId: string;
-      userId: string;
-      workflowId: string;
-      nodeId: string;
-      nodeType: string;
-      error: string;
-      timestamp: number;
-    }
-  | {
-      type: "workflow:complete";
-      executionId: string;
-      userId: string;
-      workflowId: string;
-      timestamp: number;
-    }
-  | {
-      type: "workflow:failed";
-      executionId: string;
-      userId: string;
-      workflowId: string;
-      error: string;
-      timestamp: number;
-    };
-
+ 
 export class WorkflowExecutor{
     private workflowId:string;
     private userId:string;
     private workflow:Workflow;
-    private graph:Map<Node,Node[]>;
-    private eventChannel:string;
+    private graph:Map<Node,{ node: Node; branchPath: "true" | "false" | null }[]>;
     private executionId:string;
     private startNode: Node | null = null;
     private emit: (event: WorkflowExecutorEvent) => Promise<void>;
@@ -71,8 +25,7 @@ export class WorkflowExecutor{
         this.userId = userId
         this.workflow = workflow
         this.executionId = executionId
-        this.graph = new Map<Node,Node[]>()
-        this.eventChannel = process.env.WORKFLOW_EVENT_CHANNEL || ""
+        this.graph = new Map<Node,{ node: Node; branchPath: "true" | "false" | null }[]>()
         this.startNode = this.findStartNode()
         this.emit = emit
 
@@ -85,20 +38,20 @@ export class WorkflowExecutor{
 
     private constructGraph(){
 
-        const idToNode = new Map<string, Node>();
+      const idToNode = new Map<string, Node>();
 
-        for(const node of this.workflow.graph.nodes){
-            idToNode.set(node.id, node);
-            this.graph.set(node,[]);
+      for(const node of this.workflow.graph.nodes){
+        idToNode.set(node.id, node);
+        this.graph.set(node,[]);
+      }
+      for(const edge of this.workflow.graph.edges){
+        const sourceNode = idToNode.get(edge.source);
+        const targetNode = idToNode.get(edge.target);
+    
+        if (sourceNode && targetNode) {
+          this.graph.get(sourceNode)?.push({node: targetNode,branchPath: edge?.data?.branchPath ?? null});
         }
-        for(const edge of this.workflow.graph.edges){
-            const sourceNode = idToNode.get(edge.source);
-            const targetNode = idToNode.get(edge.target);
-        
-            if (sourceNode && targetNode) {
-              this.graph.get(sourceNode)?.push(targetNode);
-            }
-        }
+      }
     }
 
 
@@ -115,26 +68,38 @@ export class WorkflowExecutor{
         queue.push(this.startNode)
 
         while(queue.length > 0){ 
-            const node = queue.shift()
-            if(!node){
-                throw new Error("Invalid node")
-            }
-            const res = await this.processNode(node)
+          const node = queue.shift()
+          if(!node){
+              throw new Error("Invalid node")
+          }
+          const result = await this.processNode(node)
 
-			const children = this.graph.get(node) ?? []
-			for(const child of children){
-                if(child.data){
-                    child.data["previousInput"] = res
-                    queue.push(child)
-                }
-			}
+          const children = this.graph.get(node) ?? [];
+
+          if (node.type === "condition") {
+            const conditionResult = result as ConditionNodeOutput;
+            const resultBranch = conditionResult.branch
+      
+            for (const { node: child, branchPath } of children) {
+              if (branchPath === resultBranch) {
+                child.data = { ...(child.data ?? {}), previousInput: result };
+                queue.push(child);
+              }
+            }
+            continue;
+          }
+      
+          for (const { node: child } of children) {
+            child.data = { ...(child.data ?? {}), previousInput: result };
+            queue.push(child);
+          }
         }
     }
 
     async processNode(node:Node){
         const nodeId = node.id;
         const nodeType = node.type;
-        const input = node.data?.previousInput ?? null;
+        const input:AgentNodeOutput = node.data?.previousInput ?? null;
 
         this.emit({
             type: "node:start",
@@ -148,22 +113,52 @@ export class WorkflowExecutor{
           });
 
           try {
-            let output;
+            let result: AgentNodeOutput | ConditionNodeOutput;
         
             switch (node.type) {
               case "start":
-                output = "";
+                result  = { text: "", data: {} };
                 break;
         
               case "weather_agent":
-                output = await runWeatherAgent(node.data?.userPrompt ?? "", input);
+                result = await runWeatherAgent(node.data?.userPrompt ?? "", input);
                 break;
         
               case "summarizer_agent":
-                output = await runSummarizer(node.data?.userPrompt ?? "", input);
+                result = await runSummarizer(node.data?.userPrompt ?? "", input);
+                break;
+
+              case "condition":
+                const {variable, operator, value} = node.data
+                const actual = input?.data?.[variable] 
+
+                let branch: "true" | "false" = "false";
+                if (actual !== undefined) {
+                  switch (operator) {
+                    case "==": branch = actual == value ? "true" : "false"; break;
+                    case "!=": branch = actual != value ? "true" : "false"; break;
+                    case ">": branch = actual > value ? "true" : "false"; break;
+                    case "<": branch = actual < value ? "true" : "false"; break;
+                    case ">=": branch = actual >= value ? "true" : "false"; break;
+                    case "<=": branch = actual <= value ? "true" : "false"; break;
+                    case "contains":
+                      branch = (typeof actual === "string" || Array.isArray(actual)) && actual.includes(value)
+                        ? "true" 
+                        : "false";
+                      break;
+                    default:
+                      throw new Error(`Unknown operator ${operator}`);
+                  }
+                }
+
+                result = { branch, output: input };
                 break;
         
               default:
+                result = {
+                  text: "",
+                  data:{}
+                }
                 throw new Error("Unsupported node type: " + node.type);
             }
         
@@ -174,11 +169,11 @@ export class WorkflowExecutor{
               userId: this.userId,
               nodeId,
               nodeType,
-              output,
+              result,
               timestamp: Date.now(),
             });
         
-            return output;
+            return result;
         
           } catch (err: any) {
             this.emit({
