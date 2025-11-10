@@ -65,9 +65,54 @@ async function getWorkflowExecutionById(executionId: string) {
   return execution;
 }
 
+async function recordNodeStart(
+  executionId: string,
+  nodeId: string,
+  nodeType: string,
+  input?: any
+) {
+  return WorkflowRepository.createStartLog(
+    executionId,
+    nodeId,
+    nodeType,
+    input
+  );
+}
+
+async function recordNodeSuccess(
+  executionId: string,
+  nodeId: string,
+  nodeType: string,
+  output?: any
+) {
+  return WorkflowRepository.createSuccessLog(
+    executionId,
+    nodeId,
+    nodeType,
+    output
+  );
+}
+
+async function recordNodeFailure(
+  executionId: string,
+  nodeId: string,
+  nodeType: string,
+  error: string
+) {
+  return WorkflowRepository.createFailureLog(
+    executionId,
+    nodeId,
+    nodeType,
+    error
+  );
+}
+
 export const ExecutionService = {
   createWorkflowExecution,
   updateWorkflowExecution,
   deleteWorkflowExecution,
   getWorkflowExecutionById,
+  recordNodeStart,
+  recordNodeSuccess,
+  recordNodeFailure,
 };

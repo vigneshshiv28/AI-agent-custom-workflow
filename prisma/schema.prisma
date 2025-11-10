@@ -29,6 +29,12 @@ enum ScheduleType {
   CALENDAR
 }
 
+enum NodeExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
 
 model User {
   id            String     @id @default(uuid())
@@ -111,9 +117,30 @@ model WorkflowExecution {
   status     WorkflowStatus
   output     Json?
   workflow   Workflow       @relation(fields: [workflowId], references: [id])
+  nodeLogs   WorkflowExecutionNodeLog[]
 
   @@index([workflowId])
   @@index([startedAt])
+}
+
+
+
+model WorkflowExecutionNodeLog {
+  id            String               @id @default(uuid())
+  executionId   String
+  nodeId        String
+  nodeType      String
+  input         Json?
+  output        Json?
+  status        NodeExecutionStatus  @default(PENDING)
+  startedAt     DateTime             @default(now())
+  endedAt       DateTime?
+
+  execution     WorkflowExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@index([nodeId])
+  @@index([status])
 }
 
 model Session {

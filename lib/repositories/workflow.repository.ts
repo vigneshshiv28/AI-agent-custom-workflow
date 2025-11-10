@@ -299,6 +299,64 @@ async function deleteOldExecutions(days: number) {
   });
 }
 
+async function createStartLog(
+    executionId: string,
+    nodeId: string,
+    nodeType: string,
+    input?: Prisma.InputJsonValue
+  ) {
+    return prisma.workflowExecutionNodeLog.create({
+      data: {
+        executionId,
+        nodeId,
+        nodeType,
+        input,
+        status: "RUNNING",
+      },
+    });
+  }
+
+  async function createSuccessLog(
+    executionId: string,
+    nodeId: string,
+    nodeType: string,
+    output?: Prisma.InputJsonValue
+  ) {
+    return prisma.workflowExecutionNodeLog.create({
+      data: {
+        executionId,
+        nodeId,
+        nodeType,
+        output,
+        status: "SUCCESS",
+      },
+    });
+  }  
+
+async function createFailureLog(
+    executionId: string,
+    nodeId: string,
+    nodeType: string,
+    error: string
+  ) {
+    return prisma.workflowExecutionNodeLog.create({
+      data: {
+        executionId,
+        nodeId,
+        nodeType,
+        output: { error },
+        status: "FAILED",
+      },
+    });
+  }
+
+async function updateEndTime(logId: string) {
+    return prisma.workflowExecutionNodeLog.update({
+      where: { id: logId },
+      data: { endedAt: new Date() },
+    });
+  }
+
 export const WorkflowRepository = {
   createWorkflow,
   findWorkflowById,
@@ -317,4 +375,8 @@ export const WorkflowRepository = {
   findExecutionById,
   deleteExecution,
   deleteOldExecutions,
+  createStartLog,
+  createSuccessLog,
+  createFailureLog,
+  updateEndTime,
 };

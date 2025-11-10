@@ -2,18 +2,79 @@
 import { Workflow,Node } from "@/app/api/workflow/route";
 import { runWeatherAgent, runSummarizer } from "./agents";
 
-export class WorkflowExecutor{
-    private workflow:Workflow;
-    private redis: any; 
-    private graph:Map<Node,Node[]>;
-    private startNode: Node | null = null;
-    
-    constructor(workflow: Workflow, redis:any){
-        this.workflow = workflow
-        this.redis = redis
-        this.graph = new Map<Node,Node[]>()
 
+export type WorkflowExecutorEvent =
+  | {
+      type: "node:start";
+      executionId: string;
+      userId: string;
+      workflowId: string;
+      nodeId: string;
+      nodeType: string;
+      input?: any;
+      timestamp: number;
+    }
+  | {
+      type: "node:success";
+      executionId: string;
+      userId: string;
+      workflowId: string;
+      nodeId: string;
+      nodeType: string;
+      output: any;
+      timestamp: number;
+    }
+  | {
+      type: "node:error";
+      executionId: string;
+      userId: string;
+      workflowId: string;
+      nodeId: string;
+      nodeType: string;
+      error: string;
+      timestamp: number;
+    }
+  | {
+      type: "workflow:complete";
+      executionId: string;
+      userId: string;
+      workflowId: string;
+      timestamp: number;
+    }
+  | {
+      type: "workflow:failed";
+      executionId: string;
+      userId: string;
+      workflowId: string;
+      error: string;
+      timestamp: number;
+    };
+
+export class WorkflowExecutor{
+    private workflowId:string;
+    private userId:string;
+    private workflow:Workflow;
+    private graph:Map<Node,Node[]>;
+    private eventChannel:string;
+    private executionId:string;
+    private startNode: Node | null = null;
+    private emit: (event: WorkflowExecutorEvent) => Promise<void>;
+    
+    constructor(
+        workflowId:string,
+        workflow: Workflow,
+        userId: string,
+        executionId: string,
+        emit: (event: WorkflowExecutorEvent) => Promise<void>
+      ){
+        this.workflowId = workflowId
+        this.userId = userId
+        this.workflow = workflow
+        this.executionId = executionId
+        this.graph = new Map<Node,Node[]>()
+        this.eventChannel = process.env.WORKFLOW_EVENT_CHANNEL || ""
         this.startNode = this.findStartNode()
+        this.emit = emit
 
         if(!this.startNode){
             throw new Error("Workflow is invalid no starting node found")
@@ -53,7 +114,7 @@ export class WorkflowExecutor{
         } 
         queue.push(this.startNode)
 
-        while(queue.length > 0){
+        while(queue.length > 0){ 
             const node = queue.shift()
             if(!node){
                 throw new Error("Invalid node")
@@ -71,37 +132,68 @@ export class WorkflowExecutor{
     }
 
     async processNode(node:Node){
+        const nodeId = node.id;
+        const nodeType = node.type;
+        const input = node.data?.previousInput ?? null;
 
-        switch(node.type){
-            case "start":
-                console.log("executing start node")
-                return ""
-                
-            case "weather_agent":
-                console.log("executing weather agent node")
-                
-                const weatherResult = await runWeatherAgent(
-                    node.data?.userPrompt ?? "",
-                    node.data?.previousInput ?? ""
-                  );
+        this.emit({
+            type: "node:start",
+            executionId: this.executionId,
+            workflowId: this.workflowId,
+            userId: this.userId,
+            nodeId,
+            nodeType,
+            input,
+            timestamp: Date.now(),
+          });
 
-                console.log("weather result",weatherResult)
-                return weatherResult
-                
-            case "summarizer_agent":
-                console.log("executing summarizer agent node")
-                const summarizerResult  = await runSummarizer(
-                    node.data?.userPrompt ?? "",
-                    node.data?.previousInput ?? ""
-                )
-                console.log("summary result",summarizerResult)
-                return summarizerResult
-                
-            case "Conditional":
-                console.log("executing conditional node")
-                break
-            default:
-                throw new Error("Invalid Node type")
+          try {
+            let output;
+        
+            switch (node.type) {
+              case "start":
+                output = "";
+                break;
+        
+              case "weather_agent":
+                output = await runWeatherAgent(node.data?.userPrompt ?? "", input);
+                break;
+        
+              case "summarizer_agent":
+                output = await runSummarizer(node.data?.userPrompt ?? "", input);
+                break;
+        
+              default:
+                throw new Error("Unsupported node type: " + node.type);
+            }
+        
+            this.emit({
+              type: "node:success",
+              executionId: this.executionId,
+              workflowId: this.workflowId,
+              userId: this.userId,
+              nodeId,
+              nodeType,
+              output,
+              timestamp: Date.now(),
+            });
+        
+            return output;
+        
+          } catch (err: any) {
+            this.emit({
+              type: "node:error",
+              executionId: this.executionId,
+              workflowId: this.workflowId,
+              userId: this.userId,
+              nodeId,
+              nodeType,
+              error: err.message,
+              timestamp: Date.now(),
+            });
+        
+            throw err;
         }
     }
+
 }

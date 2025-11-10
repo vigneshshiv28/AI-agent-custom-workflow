@@ -1,35 +1,74 @@
 import redis from '@/lib/db/redis';
+import { WorkflowService } from '@/lib/services';
 import { ExecutionService, CreateWorkflowExecutionData } from '@/lib/services';
-import { Workflow } from '@/app/api/workflow/route';
-import { WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
+import { workflowSchema } from '@/app/api/workflow/route';
+import { WorkflowQueueMessage } from '../types';
+import { WorkflowExecutorEvent,WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
+
+
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
 const WORKERS_COUNT = parseInt(process.env.WORKFLOW_WORKER_COUNT || '10');
 const GROUP_NAME = process.env.WORKFLOW_EXECUTION_GROUP || '';
+const EVENT_CHANNEL = process.env.WORKFLOW_EVENT_CHANNEL || ""
 
-interface WorkflowData{
-  workflowId: string,
-  workflow: Workflow,
-  status:   "RUNNING" | "SUCCESS" | "FAILED"
+
+async function emitter(event: WorkflowExecutorEvent) {
+  switch (event.type) {
+    case "node:start":
+      await ExecutionService.recordNodeStart(
+        event.executionId,
+        event.nodeId,
+        event.nodeType,
+        event.input
+      );
+      break;
+
+    case "node:success":
+      await ExecutionService.recordNodeSuccess(
+        event.executionId,
+        event.nodeId,
+        event.nodeType,
+        event.output
+      );
+      break;
+
+    case "node:error":
+      await ExecutionService.recordNodeFailure(
+        event.executionId,
+        event.nodeId,
+        event.nodeType,
+        event.error
+      );
+      break;
+    
+   }
+
+   await redis.publish(EVENT_CHANNEL, JSON.stringify(event));
 }
 
-async function execute_workflow(workflow: WorkflowData) {
+
+async function execute_workflow(workflowId: string, userId: string) {
   try{
+
+    const workflow = await WorkflowService.getWorkflowById(workflowId,userId)
+
     const workflowExecution:CreateWorkflowExecutionData = {
-      workflowId: workflow.workflowId,
-      status: workflow.status,
-  
+      workflowId: workflow.id,
+      status: "RUNNING",
     }
   
     const executingWorkflow = await ExecutionService.createWorkflowExecution(workflowExecution)
-    console.log('executing workflow...', workflow.workflowId);
+    console.log('executing workflow...', workflow.id);
   
-    const workflowExecutor = new WorkflowExecutor(workflow.workflow,redis)
+    const parsedWorkflow = workflowSchema.parse(workflow.workflow);
+    const workflowExecutor = new WorkflowExecutor(workflow.id,parsedWorkflow,workflow.userId,executingWorkflow.id,emitter)
     await workflowExecutor.executeWorkflow()
     
     console.log("Workflow executed successfully")  
   }catch(error){
     console.log(error)
+    throw(error)
   }
 
 }
@@ -89,7 +128,7 @@ async function worker(workerId: number) {
             }
 
             const { event, data } = fields;
-            const parsedData = JSON.parse(data);
+            const parsedData: WorkflowQueueMessage['data'] = JSON.parse(data as string);
 
             console.log(`[Worker ${workerId}] Processing:`, {
               messageId,
@@ -99,7 +138,7 @@ async function worker(workerId: number) {
               scheduleId: parsedData.scheduleId,
             });
 
-            await execute_workflow(parsedData);
+            await execute_workflow(parsedData.workflowId,parsedData.userId);
 
             await redis.xack(STREAM_KEY, GROUP_NAME, messageId);
           }      

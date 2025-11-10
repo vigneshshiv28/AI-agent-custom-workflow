@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import redis from "@/lib/db/redis";
+import { WorkflowQueueMessage } from "./types";
 
 export interface Job{
     userId: string;
@@ -13,9 +14,11 @@ export interface ScheduledJob extends Job {
 }
 
 
+
+
 const STREAM_KEY= process.env.WORKFLOW_EXECUTION_STREAM || ""
 
-async function sendToQueue(data: any){
+async function sendToQueue(payload: WorkflowQueueMessage){
     try{
       
       if(STREAM_KEY === "" ){
@@ -25,13 +28,13 @@ async function sendToQueue(data: any){
       const jobId = await redis.xadd(
         STREAM_KEY,
         "*",
-        "event",data.event,
-        "data",JSON.stringify(data.data),
+        "event",payload.event,
+        "data",JSON.stringify(payload.data),
       )
   
       return jobId
     }catch(error){
-      console.log("Error sedning data to stream", error)
+      console.log("Error sending data to stream", error)
       throw error
     }
 }
@@ -49,7 +52,6 @@ export async function setWorkflowCronJob(cronExpression: string, job: Job) {
           workflowId: job.workflowId,
           scheduleId: job.scheduleId,
           triggeredAt: now,
-          workflow: job.workflow
         }
       });
     });
@@ -74,7 +76,6 @@ export async  function setWorkflowScheduledJob(job: ScheduledJob) {
             workflowId: job.workflowId,
             scheduleId: job.scheduleId,
             triggeredAt: new Date().toISOString(),
-            workflow: job.workflow
         }
         });
 
