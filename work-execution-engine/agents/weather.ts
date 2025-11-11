@@ -35,12 +35,13 @@ export async function runWeatherAgent(userPrompt:string = "", nodeInput:AgentNod
       prompt: prompt,
       
     });
-
-    const toolCall = result.toolResults[0].output
-
+    console.log("exexcuting weahter agent")
+    const toolCall = result?.toolResults[0]?.output ?? {}
+    
+    console.log(`text ${result.text} and tool ${JSON.stringify(toolCall)}`);
     return {
         text: result.text,
-        data: toolCall ? toolCall:{}  
+        data: toolCall 
     }
 }
 

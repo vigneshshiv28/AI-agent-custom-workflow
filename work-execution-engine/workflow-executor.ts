@@ -2,8 +2,6 @@
 import { Workflow,Node } from "@/app/api/workflow/route";
 import { runWeatherAgent, runSummarizer } from "./agents";
 import { AgentNodeOutput, ConditionNodeOutput, WorkflowExecutorEvent } from "./type";
-
-
  
 export class WorkflowExecutor{
     private workflowId:string;
@@ -61,37 +59,40 @@ export class WorkflowExecutor{
     }
 
     public async executeWorkflow(){
-        const queue: Node[] = []
+        let queue: Node[] = []
         if(!this.startNode){
             throw new Error("Workflow is invalid no starting node found")
         } 
         queue.push(this.startNode)
 
-        while(queue.length > 0){ 
-          const node = queue.shift()
-          if(!node){
-              throw new Error("Invalid node")
-          }
-          const result = await this.processNode(node)
-
-          const children = this.graph.get(node) ?? [];
-
-          if (node.type === "condition") {
-            const conditionResult = result as ConditionNodeOutput;
-            const resultBranch = conditionResult.branch
+        while (queue.length > 0) {
+          const currentBatch = queue; 
+          queue = []; 
+         
+          const results = await Promise.all(
+            currentBatch.map(async (node) => {
+              const output = await this.processNode(node);
+              return { node, output };
+            })
+          );
       
-            for (const { node: child, branchPath } of children) {
-              if (branchPath === resultBranch) {
-                child.data = { ...(child.data ?? {}), previousInput: result };
+          for (const { node, output } of results) {
+            const children = this.graph.get(node) ?? [];
+      
+            if (node.type === "condition") {
+              const branch = (output as ConditionNodeOutput).branch; // "true" | "false"
+              const nextChild = children.find((c) => c.branchPath === branch);
+      
+              if (nextChild) {
+                nextChild.node.data = { ...(nextChild.node.data ?? {}), previousInput: output };
+                queue.push(nextChild.node);
+              }
+            } else {
+              for (const { node: child } of children) {
+                child.data = { ...(child.data ?? {}), previousInput: output };
                 queue.push(child);
               }
             }
-            continue;
-          }
-      
-          for (const { node: child } of children) {
-            child.data = { ...(child.data ?? {}), previousInput: result };
-            queue.push(child);
           }
         }
     }
@@ -190,5 +191,11 @@ export class WorkflowExecutor{
             throw err;
         }
     }
-
 }
+
+
+
+
+
+
+

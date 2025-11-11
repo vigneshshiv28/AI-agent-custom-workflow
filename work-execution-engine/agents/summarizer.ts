@@ -22,12 +22,12 @@ export async function runSummarizer(userPrompt:string = "", nodeInput:AgentNodeO
         system: "You are summarizer agent you will summarize input you will get",
         prompt: prompt
     })
-
-    const toolCall = result.toolResults[0].output
-
+    console.log("executing summarizer")
+    const toolCall = result?.toolResults[0]?.output ?? {}
+    console.log(`text ${result.text} and tool ${JSON.stringify(toolCall)}`);
     return {
         text: result.text,
-        data: toolCall ? toolCall:{}  
+        data: toolCall 
     }
 }
 
