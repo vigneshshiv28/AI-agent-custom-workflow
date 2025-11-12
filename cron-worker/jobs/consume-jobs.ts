@@ -40,8 +40,7 @@ async function emitter(event: WorkflowExecutorEvent) {
         event.nodeType,
         event.error
       );
-      break;
-    
+      break;    
    }
 
    await redis.publish(EVENT_CHANNEL, JSON.stringify(event));
@@ -49,29 +48,50 @@ async function emitter(event: WorkflowExecutorEvent) {
 
 
 async function execute_workflow(workflowId: string, userId: string) {
-  try{
 
-    const workflow = await WorkflowService.getWorkflowById(workflowId,userId)
+  let executingWorkflow;
 
-    const workflowExecution:CreateWorkflowExecutionData = {
+  try {
+    const workflow = await WorkflowService.getWorkflowById(workflowId, userId);
+
+    const workflowExecution: CreateWorkflowExecutionData = {
       workflowId: workflow.id,
       status: "RUNNING",
-    }
-  
-    const executingWorkflow = await ExecutionService.createWorkflowExecution(workflowExecution)
-    console.log('executing workflow...', workflow.id);
-  
-    const parsedWorkflow = workflowSchema.parse(workflow.workflow);
-    const workflowExecutor = new WorkflowExecutor(workflow.id,parsedWorkflow,workflow.userId,executingWorkflow.id,emitter)
-    await workflowExecutor.executeWorkflow()
-    
-    console.log("Workflow executed successfully")  
-  }catch(error){
-    console.log(error)
-    throw(error)
-  }
+    };
 
+    executingWorkflow = await ExecutionService.createWorkflowExecution(workflowExecution);
+    console.log('executing workflow...', workflow.id);
+
+    const parsedWorkflow = workflowSchema.parse(workflow.workflow);
+    const workflowExecutor = new WorkflowExecutor(
+      workflow.id,
+      parsedWorkflow,
+      workflow.userId,
+      executingWorkflow.id,
+      emitter
+    );
+
+    await workflowExecutor.executeWorkflow();
+
+    await ExecutionService.updateWorkflowExecution(executingWorkflow.id, {
+      status: "SUCCESS"
+    });
+
+    console.log("Workflow executed successfully");
+
+  } catch (error) {
+
+    if (executingWorkflow) {
+      await ExecutionService.updateWorkflowExecution(executingWorkflow.id, {
+        status: "FAILED"
+      });
+    }
+
+    console.log("Workflow execution failed:", error);
+    throw error; 
+  }
 }
+
 
 async function initializeConsumerGroup() {
   try {

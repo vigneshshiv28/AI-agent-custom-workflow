@@ -80,7 +80,7 @@ export class WorkflowExecutor{
             const children = this.graph.get(node) ?? [];
       
             if (node.type === "condition") {
-              const branch = (output as ConditionNodeOutput).branch; // "true" | "false"
+              const branch = (output as ConditionNodeOutput).branch; 
               const nextChild = children.find((c) => c.branchPath === branch);
       
               if (nextChild) {
