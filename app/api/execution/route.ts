@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { WorkflowStatus } from '@/app/generated/prisma/enums';
 import { ExecutionService } from '@/lib/services';
+import { auth } from '@/lib/auth/auth';
 
 const CreateExecutionSchema = z.object({
   workflowId: z.string().min(1, 'Workflow ID is required'),
@@ -10,6 +11,12 @@ const CreateExecutionSchema = z.object({
 });
 
 export async function POST(request: Request) {
+
+  const session = await auth.api.getSession({ headers: request.headers });
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const result = CreateExecutionSchema.safeParse(body);
