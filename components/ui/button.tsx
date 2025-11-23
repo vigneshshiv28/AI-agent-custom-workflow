@@ -1,4 +1,7 @@
+"use client"
+
 import * as React from "react"
+import { motion } from "motion/react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -46,10 +49,12 @@ function Button({
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }) {
-  const Comp = asChild ? Slot : "button"
+  const Comp = (asChild ? Slot : motion.button) as any
 
   return (
     <Comp
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}

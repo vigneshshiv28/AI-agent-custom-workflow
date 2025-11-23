@@ -4,14 +4,14 @@ import { Logo } from './logo'
 import Link from 'next/link'
 import { Button } from './ui/button'
 import { usePathname } from 'next/navigation'
-
-
+import { motion, LayoutGroup } from 'motion/react'
 
 export const Navbar = () => {
   const pathname = usePathname()
 
   const navLinks = [
     {
+
       label: "Home",
       href: "/"
     },
@@ -37,21 +37,34 @@ export const Navbar = () => {
         </Link>
 
         <div className="flex items-center gap-4">
-          {navLinks.map((link) => {
-            const active = pathname === link.href
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-sm font-medium transition-all duration-300 ${active
-                  ? "bg-primary text-black font-semibold shadow-[0_2px_6px_rgba(0,255,200,0.45)]"
-                  : "text-white hover:text-primary hover:scale-[1.08]"
-                  }`}
-              >
-                {link.label}
-              </Link>
-            )
-          })}
+          <LayoutGroup>
+            {navLinks.map((link) => {
+              const active = pathname === link.href
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`relative inline-flex items-center justify-center px-4 py-1 rounded-full text-sm font-medium transition-colors duration-300 z-10 ${active
+                    ? "text-black font-semibold"
+                    : "text-white hover:text-primary"
+                    }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="navbar-active"
+                      className="absolute inset-0 bg-primary rounded-full -z-10 shadow-[0_2px_6px_rgba(0,255,200,0.45)]"
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                  {link.label}
+                </Link>
+              )
+            })}
+          </LayoutGroup>
         </div>
       </div>
 
@@ -68,6 +81,5 @@ export const Navbar = () => {
         </Button>
       </div>
     </nav>
-
   )
 }

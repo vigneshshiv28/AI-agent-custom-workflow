@@ -9,7 +9,7 @@ import { Button } from "./ui/button";
 
 const Hero = () => {
     return (
-        <section className="relative py-14 space-y-8">
+        <section className="relative py-14 xl:pb-[250px] lg:pb-[80px] space-y-8">
             <Container >
                 <div className=" flex flex-col gap-6 max-w-xl
                             items-center text-center
@@ -18,17 +18,14 @@ const Hero = () => {
                         Your work, <br /> <span className="text-primary drop-shadow">Processed</span> for you <br /><span className="text-primary drop-shadow">Not</span> by you.
                     </Heading>
                     <p className="text-lg font-mono text-neutral-400 ">
-                        Blend tools, logic and AI into workflows that run 24/7  <br /> even when you’re offline.
+                        Blend tools, logic and AI into workflows <br />  that run 24/7 even when you’re offline.
                     </p>
                     <div className="flex flex-col gap-4 md:flex-row">
                         <Button className="rounded-full text-black">Start building</Button>
                         <ShimmerButton className=" py-0 ">Talk to Agent</ShimmerButton>
                     </div>
                 </div>
-
-
-
-                <div className=" py-14 text-xs lg:text-xl text-neutral-400 space-y-6">
+                <div className=" py-14 text-xs xl:text-xl text-neutral-400 space-y-6">
                     <div className="flex items-center gap-2 hover:text-neutral-200 transition-colors duration-300">
                         <CircleCheck />
                         <p>Build workflows visually no code required</p>
@@ -45,7 +42,7 @@ const Hero = () => {
 
 
                 <AgentFrameworkDiagram
-                    className=" absolute top-2 right-[-50px] w-[786px] lg:w-[1100px] 
+                    className=" absolute hidden lg:block xl:top-[50px] xl:right-[100px] lg:top-10 lg:left-60 lg:h-[500px] lg:w-[800px] 2xl:left-100  xl:h-[600px] xl:w-[1100px] 
                  rotate-[-30deg] skew-x-[30deg]
                 -z-10"
                 />
