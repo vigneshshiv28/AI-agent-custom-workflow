@@ -9,7 +9,7 @@ import { Button } from "./ui/button";
 
 const Hero = () => {
     return (
-        <section className="relative py-14 xl:pb-[250px] lg:pb-[80px] space-y-8">
+        <section className="relative max-w-screen py-14 xl:pb-[250px]  lg:pb-[80px] space-y-8">
             <Container >
                 <div className=" flex flex-col gap-6 max-w-xl
                             items-center text-center
@@ -42,7 +42,7 @@ const Hero = () => {
 
 
                 <AgentFrameworkDiagram
-                    className=" absolute hidden lg:block xl:top-[50px] xl:right-[100px] lg:top-10 lg:left-60 lg:h-[500px] lg:w-[800px] 2xl:left-100  xl:h-[600px] xl:w-[1100px] 
+                    className=" overflow-hidden absolute hidden lg:block xl:top-[50px] xl:right-[100px] lg:top-10 lg:left-60 lg:h-[500px] lg:w-[800px] 2xl:left-100  xl:h-[600px] xl:w-[1100px] 
                  rotate-[-30deg] skew-x-[30deg]
                 -z-10"
                 />

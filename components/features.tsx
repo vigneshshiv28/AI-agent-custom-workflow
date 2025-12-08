@@ -22,7 +22,7 @@ import { NotificationFeed } from "@/components/notification-card";
 import { LogoIcon } from "@/components/logo";
 import { OrbitingCircles } from "@/components/ui/orbiting-circles";
 import Heading from "@/components/heading";
-import { cn } from "@/lib/utils";
+
 
 const WorkflowBackground = () => {
     return (

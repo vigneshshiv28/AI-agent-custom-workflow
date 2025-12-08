@@ -3,10 +3,12 @@ import React from 'react'
 import { Logo } from './logo'
 import Link from 'next/link'
 import { Button } from './ui/button'
+import { useRouter } from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import { motion, LayoutGroup } from 'motion/react'
 
 export const Navbar = () => {
+  const router = useRouter()
   const pathname = usePathname()
 
   const navLinks = [
@@ -71,12 +73,12 @@ export const Navbar = () => {
       <div className="flex items-center gap-4">
         <Link
           className="hover:text-primary transition-colors duration-300"
-          href="/"
+          href="/auth/login"
         >
           Login
         </Link>
 
-        <Button className="bg-primary text-black font-semibold rounded-full px-4 py-1 hover:scale-[1.04] transition-all duration-300 shadow-[0_3px_8px_rgba(0,255,200,0.45)]">
+        <Button onClick={() => router.push("/auth/signup")} className="bg-primary text-black font-semibold rounded-full px-4 py-1 hover:scale-[1.04] transition-all duration-300 shadow-[0_3px_8px_rgba(0,255,200,0.45)]">
           Sign Up
         </Button>
       </div>

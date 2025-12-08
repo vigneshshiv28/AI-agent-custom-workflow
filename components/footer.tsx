@@ -1,5 +1,6 @@
 
 import { Github, Twitter, Linkedin } from "lucide-react";
+import { Logo } from "@/components/logo"
 import Link from "next/link";
 
 export const Footer = () => {
@@ -8,7 +9,7 @@ export const Footer = () => {
 
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex flex-col items-center md:items-start gap-2">
-                    <span className="text-xl font-bold text-white tracking-tight">AgentWorkflow</span>
+                    <Logo />
                     <p className="text-neutral-500 text-sm">
                         © {new Date().getFullYear()} AgentWorkflow Inc. All rights reserved.
                     </p>

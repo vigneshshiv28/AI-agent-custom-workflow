@@ -22,16 +22,15 @@ interface NotificationItem {
 }
 
 
-
 const DATA: NotificationItem[] = [
-    { id: '1', title: "deploy-prod-eu-128", description: "Deployment successful", time: "2m ago", status: 'success' },
-    { id: '2', title: "fix/auth-token-refresh", description: "Tests failed", time: "5m ago", status: 'error' },
-    { id: '3', title: "feat/user-dashboard-v2", description: "Building artifacts...", time: "12m ago", status: 'pending' },
-    { id: '4', title: "hotfix/payment-gateway", description: "Merged to main", time: "15m ago", status: 'success' },
-    { id: '5', title: "chore/update-deps", description: "Vulnerability found", time: "22m ago", status: 'warning' },
-    { id: '6', title: "deploy-staging-us-east", description: "Verifying health...", time: "30m ago", status: 'pending' },
-    { id: '7', title: "refactor/db-schema", description: "Migration complete", time: "45m ago", status: 'success' },
-    { id: '8', title: "api/rate-limiting", description: "Performance regression", time: "1h ago", status: 'error' },
+    { id: '1', title: "Workflow 'Daily Report' executed successfully", description: "Processed 150 items in 2s.", time: "2m ago", status: 'success' },
+    { id: '2', title: "Workflow 'Data Sync' failed", description: "Node 'HTTP Request' returned 500 error.", time: "5m ago", status: 'error' },
+    { id: '3', title: "Workflow 'Email Campaign' is running", description: "Processing 250 emails.", time: "12m ago", status: 'pending' },
+    { id: '4', title: "Workflow 'User Onboarding' activated", description: "Ready to process new users.", time: "15m ago", status: 'success' },
+    { id: '5', title: "Credential 'Stripe API' expiring soon", description: "Expires in 7 days. Please update.", time: "22m ago", status: 'warning' },
+    { id: '6', title: "Workflow 'Image Resizer' deploying", description: "New version being pushed to production.", time: "30m ago", status: 'pending' },
+    { id: '7', title: "Workflow 'Slack Notifications' updated", description: "New logic for channel selection applied.", time: "45m ago", status: 'success' },
+    { id: '8', title: "Workflow 'Database Cleanup' failed", description: "Node 'Execute SQL' timed out.", time: "1h ago", status: 'error' },
 ];
 
 
