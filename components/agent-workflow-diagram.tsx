@@ -24,8 +24,8 @@ const NodeIconBox = ({ icon: Icon, label, className, active }: NodeIconBoxProps)
         <div className={cn("relative flex flex-col items-center group", className)}>
             <div
                 className={cn(
-                    "w-12 h-12 bg-[#070707] border border-gray-700 rounded-md flex items-center justify-center transition-all duration-300 shadow-[-3px_3px_0px_0px_rgb(64,64,64)]  group-hover:border-white group-hover:shadow-[-3px_3px_0px_0px_white]",
-                    active && "border-primary shadow-[-3px_3px_0px_0px_oklch(0.8221_0.1651_167.9443)]"
+                    "w-12 h-12 bg-[#070707] border border-gray-700 rounded flex items-center justify-center transition-all duration-300 shadow-[-3px_3px_0px_0px_rgb(64,64,64)]  group-hover:border-white group-hover:shadow-[-3px_3px_0px_0px_white]",
+                    active && "border-primary shadow-[-3px_3px_0px_0px_oklch(0.75_0.18_330)]"
                 )}
             >
                 <Icon
@@ -50,7 +50,7 @@ const NodeTextBox = ({ text, icon: Icon, className, active }: { text: string, ic
         <div
             className={cn(
                 "group flex justify-center items-center min-w-20 max-w-30 bg-[#070707] border border-[#202020] rounded px-3 py-1.5 text-xs text-gray-400 shadow-[-3px_3px_0px_0px_#131313] transition-all duration-300 hover:border-white hover:text-white hover:shadow-[-3px_3px_0px_0px_white]",
-                className, active && "border-primary shadow-[-3px_3px_0px_0px_oklch(0.8221_0.1651_167.9443)]"
+                className, active && "border-primary shadow-[-3px_3px_0px_0px_oklch(0.75_0.18_330)]"
             )}
         >
             <div className={`flex items-center gap-1 ${active && "text-primary"}`}>
@@ -134,7 +134,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 1 */}
                 <motion.path
                     d="M 20 49 L 32 49 L 32 20 L 40 20"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -165,7 +165,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 2 */}
                 <motion.path
                     d="M 40 20 L 60 20"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -191,7 +191,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 3 */}
                 <motion.path
                     d="M 60 20 L 75 20"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -211,7 +211,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 4 */}
                 <motion.path
                     d="M 75 20 L 85 20"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -237,7 +237,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 4b (Vertical) */}
                 <motion.path
                     d="M 75 20 L 75 49 L 85 49"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -259,7 +259,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 1 */}
                 <motion.path
                     d="M 20 50 L 40 50"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -287,7 +287,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 2 */}
                 <motion.path
                     d="M 40 50 L 60 50"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -312,7 +312,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
 
                 <motion.path
                     d="M 50 50 L 50 21 L 60 21"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -337,7 +337,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 3 */}
                 <motion.path
                     d="M 60 50 L 75 50"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -355,7 +355,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 />
                 <motion.path
                     d="M 60 21 L 75 21"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -374,7 +374,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 4 */}
                 <motion.path
                     d="M 75 50 L 85 50"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -401,7 +401,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 1 */}
                 <motion.path
                     d="M 20 51 L 32 51 L 32 80 L 40 80"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -430,7 +430,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 2 */}
                 <motion.path
                     d="M 40 80 L 50 80 L 50 51 L 60 51"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -449,7 +449,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 3 */}
                 <motion.path
                     d="M 60 51 L 75 51"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"
@@ -468,7 +468,7 @@ const AgentFrameworkDiagram = ({ className }: { className?: string }) => {
                 {/* Segment 4 */}
                 <motion.path
                     d="M 75 51 L 85 51"
-                    stroke="oklch(0.8221 0.1651 167.9443)"
+                    stroke="oklch(0.75 0.18 330)"
                     strokeWidth={0.2}
                     strokeLinecap="round"
                     fill="none"

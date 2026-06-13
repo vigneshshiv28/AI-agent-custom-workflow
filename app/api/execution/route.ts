@@ -4,6 +4,9 @@ import { WorkflowStatus } from '@/app/generated/prisma/enums';
 import { ExecutionService } from '@/lib/services';
 import { auth } from '@/lib/auth/auth';
 
+/** Response type for POST /api/execution */
+export type CreateExecutionResponse = Awaited<ReturnType<typeof ExecutionService.createWorkflowExecution>>;
+
 const CreateExecutionSchema = z.object({
   workflowId: z.string().min(1, 'Workflow ID is required'),
   status: z.enum(WorkflowStatus).optional(),

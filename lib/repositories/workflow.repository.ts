@@ -100,6 +100,8 @@ async function findWorkflowsByUserId(userId: string) {
   });
 }
 
+
+
 async function findWorkflowByUserIdAndName(userId: string, name: string) {
   return await prisma.workflow.findUnique({
     where: { userId_name: { userId, name } },
@@ -111,6 +113,15 @@ async function findWorkflowByUserIdAndName(userId: string, name: string) {
           email: true,
         },
       },
+    },
+  });
+}
+
+async function countUntitledWorkflows(userId: string) {
+  return await prisma.workflow.count({
+    where: {
+      userId,
+      name: { startsWith: 'Untitled' },
     },
   });
 }
@@ -167,7 +178,7 @@ async function updateWorkflowSchedule(id: string, data: UpdateWorkflowScheduleDa
       ...(data.status && { status: data.status }),
       ...(data.nextRunAt && { nextRunAt: data.nextRunAt }),
       ...(data.lastRunAt && { lastRunAt: data.lastRunAt }),
-      ...(data.isScheduled && { isScheduled: data.isScheduled}),
+      ...(data.isScheduled && { isScheduled: data.isScheduled }),
     },
     include: {
       workflow: {
@@ -299,69 +310,163 @@ async function deleteOldExecutions(days: number) {
   });
 }
 
-async function createStartLog(
-    executionId: string,
-    nodeId: string,
-    nodeType: string,
-    input?: Prisma.InputJsonValue
-  ) {
-    return prisma.workflowExecutionNodeLog.create({
-      data: {
-        executionId,
-        nodeId,
-        nodeType,
-        input,
-        status: "RUNNING",
-      },
-    });
-  }
 
-  async function createSuccessLog(
-    executionId: string,
-    nodeId: string,
-    nodeType: string,
-    output?: Prisma.InputJsonValue
-  ) {
-    return prisma.workflowExecutionNodeLog.create({
-      data: {
-        executionId,
-        nodeId,
-        nodeType,
-        output,
-        status: "SUCCESS",
-      },
-    });
-  }  
+async function findExecutionByUserId(userId: string, count: number) {
+  return prisma.workflowExecution.findMany({
+    where: {
+      workflow: {
+        userId: userId
+      }
+    },
+    orderBy: {
+      startedAt: "desc"
+    },
+    take: count
+  })
+}
+
+
+async function findExecutionByWorkflowId(workflowId: string, count: number) {
+  return prisma.workflowExecution.findMany({
+    where: {
+      workflowId: workflowId
+    },
+    orderBy: {
+      startedAt: "desc"
+    },
+    take: count
+  })
+}
+async function createStartLog(
+  executionId: string,
+  nodeId: string,
+  nodeType: string,
+  input?: Prisma.InputJsonValue
+) {
+  return prisma.workflowExecutionNodeLog.create({
+    data: {
+      executionId,
+      nodeId,
+      nodeType,
+      input,
+      status: "RUNNING",
+    },
+  });
+}
+
+async function createSuccessLog(
+  executionId: string,
+  nodeId: string,
+  nodeType: string,
+  output?: Prisma.InputJsonValue
+) {
+  return prisma.workflowExecutionNodeLog.create({
+    data: {
+      executionId,
+      nodeId,
+      nodeType,
+      output,
+      status: "SUCCESS",
+    },
+  });
+}
 
 async function createFailureLog(
-    executionId: string,
-    nodeId: string,
-    nodeType: string,
-    error: string
-  ) {
-    return prisma.workflowExecutionNodeLog.create({
-      data: {
-        executionId,
-        nodeId,
-        nodeType,
-        output: { error },
-        status: "FAILED",
-      },
-    });
-  }
+  executionId: string,
+  nodeId: string,
+  nodeType: string,
+  error: string
+) {
+  return prisma.workflowExecutionNodeLog.create({
+    data: {
+      executionId,
+      nodeId,
+      nodeType,
+      output: { error },
+      status: "FAILED",
+    },
+  });
+}
 
 async function updateEndTime(logId: string) {
-    return prisma.workflowExecutionNodeLog.update({
-      where: { id: logId },
-      data: { endedAt: new Date() },
-    });
-  }
+  return prisma.workflowExecutionNodeLog.update({
+    where: { id: logId },
+    data: { endedAt: new Date() },
+  });
+}
+
+// Dashboard Data
+
+async function getDashboardWorkflows(userId: string) {
+  return await prisma.workflow.findMany({
+    where: { userId },
+    orderBy: { id: 'desc' },
+    include: {
+      _count: {
+        select: {
+          Executions: true,
+          Schedules: true,
+        },
+      },
+      Executions: {
+        orderBy: { startedAt: 'desc' },
+        take: 1
+      },
+      Schedules: {
+        where: { status: "ACTIVE" },
+        take: 1
+      }
+    },
+  });
+}
+
+async function getDashboardMetrics(userId: string) {
+  const twentyFourHoursAgo = new Date();
+  twentyFourHoursAgo.setDate(twentyFourHoursAgo.getDate() - 1);
+
+  const [
+    totalWorkflows,
+    activeSchedules,
+    recentExecutionsCount,
+    recentExecutionsSuccess,
+    recentExecutionsFailed,
+    recentExecutionsFeed
+  ] = await Promise.all([
+    // Total Workflows for user
+    prisma.workflow.count({ where: { userId } }),
+    // Active schedules across all user's workflows
+    prisma.workflowSchedule.count({ where: { workflow: { userId }, status: 'ACTIVE' } }),
+    // Total runs in the last 24 hours
+    prisma.workflowExecution.count({ where: { workflow: { userId }, startedAt: { gte: twentyFourHoursAgo } } }),
+    // Total successful runs in the last 24 hours
+    prisma.workflowExecution.count({ where: { workflow: { userId }, startedAt: { gte: twentyFourHoursAgo }, status: 'SUCCESS' } }),
+    // Total failed runs in the last 24 hours
+    prisma.workflowExecution.count({ where: { workflow: { userId }, startedAt: { gte: twentyFourHoursAgo }, status: 'FAILED' } }),
+    // Feed of the 10 most recent executions
+    prisma.workflowExecution.findMany({
+      where: { workflow: { userId } },
+      orderBy: { startedAt: 'desc' },
+      take: 10,
+      include: { workflow: { select: { id: true, name: true } } }
+    })
+  ]);
+
+  return {
+    totalWorkflows,
+    activeSchedules,
+    recentExecutionsCount,
+    successRate: recentExecutionsCount > 0 ? Math.round((recentExecutionsSuccess / recentExecutionsCount) * 100) : 0,
+    failedExecutionsCount: recentExecutionsFailed,
+    recentExecutionsFeed
+  };
+}
 
 export const WorkflowRepository = {
   createWorkflow,
   findWorkflowById,
   findWorkflowsByUserId,
   findWorkflowByUserIdAndName,
+  countUntitledWorkflows,
   updateWorkflow,
   deleteWorkflow,
   createWorkflowSchedule,
@@ -379,4 +484,8 @@ export const WorkflowRepository = {
   createSuccessLog,
   createFailureLog,
   updateEndTime,
+  getDashboardMetrics,
+  getDashboardWorkflows,
+  findExecutionByWorkflowId,
+  findExecutionByUserId,
 };

@@ -1,6 +1,5 @@
-import { WorkflowRepository, CreateWorkflowScheduleData, UpdateWorkflowScheduleData } from '../repositories';
+import { WorkflowRepository, CreateWorkflowScheduleData, UpdateWorkflowScheduleData, SchedulerRepository, registerScheduleJobSchema } from '../repositories';
 import { ScheduleStatus, ScheduleType } from '@/app/generated/prisma/client';
-import { SchedulerClient, registerScheduleJobSchema } from '../client';
 import parser from 'cron-parser';
 import { DateTime } from 'luxon';
 
@@ -83,7 +82,7 @@ async function createWorkflowSchedule(schedule: CreateWorkflowSchedule) {
 
 async function registerScheduleJob(job: registerScheduleJobSchema) {
   try {
-    const response = await SchedulerClient.registerScheduleJob(job);
+    const response = await SchedulerRepository.registerScheduleJob(job);
 
     return {
       success: true,

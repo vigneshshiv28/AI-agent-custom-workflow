@@ -2,10 +2,16 @@ import { auth } from '@/lib/auth/auth';
 import { NextResponse } from 'next/server';
 import { WorkflowService } from '@/lib/services';
 import { z } from 'zod';
+import { WorkflowResponse } from '@/shared/contracts/workflow.contract';
+import { workflowSchema } from '@/shared/schema/workflow';
+
+export type GetWorkflowByIdResponse = WorkflowResponse;
+
+export type UpdateWorkflowResponse = WorkflowResponse;
 
 const UpdateWorkflowSchema = z.object({
   name: z.string().optional(),
-  workflow: z.any().optional(),
+  workflow: workflowSchema.optional(),
 });
 
 export async function GET(
@@ -54,6 +60,18 @@ export async function PATCH(
 
     if (!result.success) {
       return NextResponse.json({ error: result.error.message }, { status: 400 });
+    }
+
+    if (result.data.workflow) {
+      const nodes = result.data.workflow.graph?.nodes ?? [];
+      const hasTrigger = nodes.some((node: any) => node?.data?.type === 'Trigger');
+
+      if (!hasTrigger) {
+        return NextResponse.json(
+          { error: 'Workflow must contain at least one Trigger node' },
+          { status: 422 }
+        );
+      }
     }
 
     const updatedWorkflow = await WorkflowService.updateWorkflow(

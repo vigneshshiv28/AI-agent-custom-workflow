@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { WorkflowStatus } from '@/app/generated/prisma/enums';
 import { ExecutionService } from '@/lib/services';
 
+/** Response type for PATCH /api/execution/[executionId] */
+export type UpdateExecutionResponse = Awaited<ReturnType<typeof ExecutionService.updateWorkflowExecution>>;
+
 const UpdateExecutionSchema = z
   .object({
     status: z.enum(WorkflowStatus).optional(),

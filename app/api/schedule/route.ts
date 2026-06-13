@@ -2,6 +2,9 @@ import { auth } from '@/lib/auth/auth';
 import { NextResponse } from 'next/server';
 import { ScheduleService } from '@/lib/services/schedule.service';
 
+/** Response type for GET /api/schedule */
+export type GetSchedulesResponse = Awaited<ReturnType<typeof ScheduleService.getWorkflowSchedulesByUserId>>;
+
 export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
 

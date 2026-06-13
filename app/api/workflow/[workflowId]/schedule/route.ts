@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { ScheduleStatus } from '@/app/generated/prisma/enums';
 import { ScheduleService, WorkflowService } from '@/lib/services';
-import { registerScheduleJobSchema } from '@/lib/client';
+import { registerScheduleJobSchema } from '@/lib/repositories';
 
-
+/** Response type for POST /api/workflow/[workflowId]/schedule */
+export type CreateScheduleResponse = NonNullable<Awaited<ReturnType<typeof ScheduleService.getWorkflowScheduleById>>>;
 const CronScheduleConfigSchema = z.object({
   mode: z.literal('CRON'),
   cronExpression: z.string().min(1, 'Cron expression is required'),
@@ -69,10 +70,10 @@ export async function POST(
       workflowId,
     });
     // Ideally this should just pub-sub model but for simplicity this is an api call for now
-    let jobBody:registerScheduleJobSchema;
-   
-    if(!schedule.isScheduled){
-   
+    let jobBody: registerScheduleJobSchema;
+
+    if (!schedule.isScheduled) {
+
 
       jobBody = {
         userId: session.user.id,
@@ -84,46 +85,46 @@ export async function POST(
 
       switch (schedule.type) {
         case "CRON":
-          if(!schedule.cronExpression){
+          if (!schedule.cronExpression) {
             return
           }
           jobBody.cronExpression = schedule.cronExpression;
           break;
-      
-      
+
+
         case "CALENDAR":
-          if(!schedule.calendarDate){
+          if (!schedule.calendarDate) {
             return
           }
           jobBody.scheduleTime = schedule.nextRunAt.toISOString();
           break;
-      
+
         default:
           throw new Error(`Unsupported schedule type: ${schedule.type}`);
       }
-    
+
       try {
-    
-        await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule:true});
-        
+
+        await ScheduleService.updateWorkflowScheduleById(schedule.id, { isSchedule: true });
+
         const jobResponse = await ScheduleService.registerScheduleJob(jobBody);
-    
-        if(!jobResponse.success){
-          await ScheduleService.updateWorkflowScheduleById(schedule. id, {isSchedule:false});
+
+        if (!jobResponse.success) {
+          await ScheduleService.updateWorkflowScheduleById(schedule.id, { isSchedule: false });
           throw new Error("Failed to register job");
         }
-    
+
         console.log(`Schedule ${schedule.id} has been scheduled to execute`);
-    
-      } catch(error) {
+
+      } catch (error) {
         console.error("Unable to schedule the job:", error);
-        await ScheduleService.updateWorkflowScheduleById(schedule.id, {isSchedule: false});
+        await ScheduleService.updateWorkflowScheduleById(schedule.id, { isSchedule: false });
 
       }
     }
 
     const registedSchedule = await ScheduleService.getWorkflowScheduleById(schedule.id)
-    
+
     return NextResponse.json(registedSchedule, { status: 201 });
   } catch (error) {
     console.error('Error creating schedule:', error);

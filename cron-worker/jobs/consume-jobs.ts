@@ -1,7 +1,7 @@
 import redis from '@/lib/db/redis';
 import { WorkflowService } from '@/lib/services';
 import { ExecutionService, CreateWorkflowExecutionData } from '@/lib/services';
-import { workflowSchema } from '@/app/api/workflow/route';
+import { workflowSchema } from '@/schema/workflow';
 import { WorkflowQueueMessage } from '../types';
 import { WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
 import { WorkflowExecutorEvent } from '@/work-execution-engine/type';
@@ -40,10 +40,10 @@ async function emitter(event: WorkflowExecutorEvent) {
         event.nodeType,
         event.error
       );
-      break;    
-   }
+      break;
+  }
 
-   await redis.publish(EVENT_CHANNEL, JSON.stringify(event));
+  await redis.publish(EVENT_CHANNEL, JSON.stringify(event));
 }
 
 
@@ -88,7 +88,7 @@ async function execute_workflow(workflowId: string, userId: string) {
     }
 
     console.log("Workflow execution failed:", error);
-    throw error; 
+    throw error;
   }
 }
 
@@ -158,10 +158,10 @@ async function worker(workerId: number) {
               scheduleId: parsedData.scheduleId,
             });
 
-            await execute_workflow(parsedData.workflowId,parsedData.userId);
+            await execute_workflow(parsedData.workflowId, parsedData.userId);
 
             await redis.xack(STREAM_KEY, GROUP_NAME, messageId);
-          }      
+          }
         }
       }
     }

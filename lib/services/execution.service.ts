@@ -65,6 +65,14 @@ async function getWorkflowExecutionById(executionId: string) {
   return execution;
 }
 
+async function getExecutionsByWorkflowId(workflowId: string, count: number = 50) {
+  return await WorkflowRepository.findExecutionByWorkflowId(workflowId, count);
+}
+
+async function getExecutionsByUserId(userId: string, count: number = 50) {
+  return await WorkflowRepository.findExecutionByUserId(userId, count);
+}
+
 async function recordNodeStart(
   executionId: string,
   nodeId: string,
@@ -112,6 +120,8 @@ export const ExecutionService = {
   updateWorkflowExecution,
   deleteWorkflowExecution,
   getWorkflowExecutionById,
+  getExecutionsByWorkflowId,
+  getExecutionsByUserId,
   recordNodeStart,
   recordNodeSuccess,
   recordNodeFailure,
