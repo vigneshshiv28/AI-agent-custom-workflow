@@ -12,6 +12,7 @@ import {
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/workflow/Button';
 import { WorkflowCard } from '@/components/workflow/WorkflowCard';
 import { EmptyState } from '@/components/workflow/EmptyState';
@@ -23,21 +24,37 @@ import { Metric } from '@/types/components';
 import { MetricsStrip } from "./MetricsStrip";
 import { createWorkflow } from "@/lib/api/workflow";
 import ApiError from "@/lib/errors/api-errors";
+import { getDashboardMetrics, getDashboardSummary } from "@/lib/api/dashboard";
 
 
 
 type DashBoardClientProps = {
-  workflows: WorkflowListResponse[],
-  metrics: DashboardMetricsResponse
+  initialWorkflows: WorkflowListResponse[];
+  initialMetrics: DashboardMetricsResponse;
 }
 
-export const DashboardClient = ({ workflows, metrics }: DashBoardClientProps) => {
+export const DashboardClient = ({ initialWorkflows, initialMetrics }: DashBoardClientProps) => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
+
+
+  const { data: metrics = initialMetrics } = useQuery<DashboardMetricsResponse>({
+    queryKey: ['dashboard', 'metrics'],
+    queryFn: getDashboardMetrics,
+    initialData: initialMetrics,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: workflows = initialWorkflows } = useQuery<WorkflowListResponse[]>({
+    queryKey: ['dashboard', 'summary'],
+    queryFn: getDashboardSummary,
+    initialData: initialWorkflows,
+    refetchOnWindowFocus: false,
+  });
 
   const MOCK_METRICS: Metric[] = [
     { label: 'Runs Today', value: metrics.recentExecutionsCount.toString(), status: 'neutral', icon: <Activity /> },
@@ -46,7 +63,6 @@ export const DashboardClient = ({ workflows, metrics }: DashBoardClientProps) =>
     { label: 'Needs Attention', value: metrics.failedExecutionsCount.toString(), status: 'warning', icon: <AlertTriangle /> },
   ];
 
-  // Filter workflows
   const filteredWorkflows = workflows.filter(w =>
     w.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -56,7 +72,6 @@ export const DashboardClient = ({ workflows, metrics }: DashBoardClientProps) =>
   const handleWorkflowDelete = () => console.log("delete");
   const handleAction = (id: string) => console.log('Action on:', id);
 
-  // Create a blank draft and navigate to its canvas
   const handleCreateNewWorkflow = async () => {
     if (isCreating) return;
     setIsCreating(true);
@@ -69,7 +84,6 @@ export const DashboardClient = ({ workflows, metrics }: DashBoardClientProps) =>
     }
   };
 
-  // Navigate to existing workflow canvas
   const handleOpenCanvas = (workflow: WorkflowListResponse) => {
     router.push(`/workflow/${workflow.id}`);
   };
@@ -87,7 +101,7 @@ export const DashboardClient = ({ workflows, metrics }: DashBoardClientProps) =>
                 <div className="font-medium text-sm text-foreground overflow-hidden text-ellipsis whitespace-nowrap max-w-[150px] sm:max-w-xs">{exec.workflow.name}</div>
                 <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 opacity-80">
                   <Clock className="w-3 h-3" />
-                  {exec.startedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {exec.startedAt.toLocaleDateString()}
+                  {(() => { const d = new Date(exec.startedAt); return `${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${d.toLocaleDateString()}`; })()}
                 </div>
               </div>
               <div className={`text-[10px] px-2 py-1 rounded-md font-semibold border uppercase tracking-wider ${exec.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :

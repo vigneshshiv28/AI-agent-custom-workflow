@@ -65,6 +65,9 @@ interface WorkflowEditor {
 
   setEdges: (updater: (edges: Edge[]) => Edge[]) => void;
 
+  // update workflow name
+  setWorkflowName: (name: string) => void;
+
   // saving state
   setSaving: (saving: boolean) => void;
 
@@ -94,7 +97,10 @@ export const useWorkflowEditorStore =
       set({
         workflowId: workflow.id,
         workflowName: workflow.name,
-        nodes: workflow.nodes || [],
+        nodes: (workflow.nodes || []).map((n) => ({
+          ...n,
+          type: (n.type === 'custom' || !n.type) ? (n.data?.type ?? 'Action') : n.type,
+        })),
         edges: workflow.edges || [],
         isDirty: false,
       }),
@@ -120,13 +126,14 @@ export const useWorkflowEditorStore =
       })),
 
     // connect nodes
-    onConnect: (connection) =>
+    onConnect: (connection: any) =>
       set((state) => ({
         edges: addEdge(
           {
             ...connection,
             type: "custom",
             animated: true,
+            data: connection.data ?? {},
           },
           state.edges
         ),
@@ -163,21 +170,27 @@ export const useWorkflowEditorStore =
 
     // update node config/data
     updateNodeData: (id, data) =>
-      set((state) => ({
-        nodes: state.nodes.map((node) =>
+      set((state) => {
+        const updatedNode = (node: any) =>
           node.id === id
             ? {
-              ...node,
-              data: {
-                ...node.data,
-                ...data,
-              },
-            }
-            : node
-        ),
+                ...node,
+                // keep ReactFlow's node.type in sync with data.type
+                type: data?.type ?? node.type,
+                data: { ...node.data, ...data },
+              }
+            : node;
 
-        isDirty: true,
-      })),
+        return {
+          nodes: state.nodes.map(updatedNode),
+          // keep selectedNode in sync so sidebar inputs aren't stale
+          selectedNode:
+            state.selectedNode?.id === id
+              ? updatedNode(state.selectedNode)
+              : state.selectedNode,
+          isDirty: true,
+        };
+      }),
 
     // selected node for sidebar
     setSelectedNode: (node) =>
@@ -190,6 +203,13 @@ export const useWorkflowEditorStore =
         edges: updater(state.edges),
         isDirty: true,
       })),
+
+    // update workflow name (marks dirty so it gets saved)
+    setWorkflowName: (name) =>
+      set({
+        workflowName: name,
+        isDirty: true,
+      }),
 
     // saving state
     setSaving: (saving) =>

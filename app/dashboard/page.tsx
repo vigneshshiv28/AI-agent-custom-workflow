@@ -8,13 +8,16 @@ export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) redirect("/login");
 
-  const metrics = await WorkflowService.getDashboardMetrics(session.user.id);
-  const workflow = await WorkflowService.getDashboardWorkflows(session.user.id);
+
+  const [metrics, workflows] = await Promise.all([
+    WorkflowService.getDashboardMetrics(session.user.id),
+    WorkflowService.getDashboardWorkflows(session.user.id),
+  ]);
 
   return (
     <DashboardClient
-      workflows={workflow}
-      metrics={metrics}
+      initialMetrics={metrics}
+      initialWorkflows={workflows}
     />
   )
 }

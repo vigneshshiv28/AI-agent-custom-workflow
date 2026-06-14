@@ -3,7 +3,7 @@ import { Handle, Position, NodeProps } from 'reactflow';
 import { motion } from 'motion/react';
 import { StatusBadge } from './StatusBadge';
 import { WorkflowStatus } from '@/types/components';
-import { Zap, Clock } from 'lucide-react';
+import { Zap, Clock, GitBranch } from 'lucide-react';
 import { NodePickerPopover } from './NodePickerPopover';
 
 const getAppLogoUrl = (label: string) => {
@@ -36,6 +36,7 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
   const logoUrl = getAppLogoUrl(data.label);
   const runState = data.runState || 'idle';
   const isTrigger = data.type === 'Trigger';
+  const isDecision = data.type === 'Decision';
 
   let scheduleText = 'Not scheduled';
   if (isTrigger && data.schedule) {
@@ -57,7 +58,7 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
 
   return (
     <motion.div 
-      className={`relative bg-black border ${isTrigger ? 'border-primary/50' : 'border-white/10'} min-w-[300px] shadow-[0_10px_40px_rgba(0,0,0,0.8)] group transition-all hover:border-primary/50 rounded-none overflow-visible`}
+      className={`relative bg-black border ${isTrigger ? 'border-primary/50' : isDecision ? 'border-yellow-500/40' : 'border-white/10'} min-w-[300px] shadow-[0_10px_40px_rgba(0,0,0,0.8)] group transition-all hover:border-primary/50 rounded-none overflow-visible`}
       animate={
         runState === 'error' ? { x: [-2, 2, -2, 2, 0], transition: { duration: 0.3 } } :
         runState === 'success' ? { scale: [1, 1.02, 1], transition: { duration: 0.3 } } :
@@ -148,7 +149,9 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
                 </h3>
                 <div className="flex items-center gap-1.5 mt-1 text-primary/80">
                   <Clock className="w-3 h-3" />
-                  <span className="text-[10px] font-mono-data uppercase tracking-wider">{scheduleText}</span>
+                  <span className={`text-[10px] font-mono-data uppercase tracking-wider ${!data.schedule ? 'text-muted-foreground/40' : ''}`}>
+                    {!data.schedule ? 'No schedule' : scheduleText}
+                  </span>
                 </div>
               </div>
             </div>
@@ -156,7 +159,9 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
         ) : (
           <>
             <div className="relative w-10 h-10 mb-4 flex items-center justify-center bg-black/40 rounded-lg overflow-hidden">
-              {logoUrl ? (
+              {isDecision ? (
+                <GitBranch className="w-5 h-5 text-yellow-400" />
+              ) : logoUrl ? (
                 <img 
                   src={logoUrl} 
                   alt="Agent Logo" 
@@ -193,10 +198,10 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono-data">Status</span>
           <StatusBadge status={WorkflowStatus.Active} runState={runState} />
         </div>
-        {data.endpoint && (
+        {data.Prompt && (
           <div className="flex justify-between items-center px-6 py-3 border-b border-border/50 hover:bg-white/5 transition-colors">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono-data">API</span>
-            <span className="text-xs font-mono-data text-foreground underline decoration-primary/30 truncate max-w-[150px] text-right" title={data.endpoint}>{data.endpoint}</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono-data">Prompt</span>
+            <span className="text-xs font-mono-data text-foreground truncate max-w-[150px] text-right opacity-70" title={data.Prompt}>{data.Prompt}</span>
           </div>
         )}
       </div>
@@ -210,12 +215,37 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
         />
       )}
       
-      <Handle
-        type="source"
-        position={Position.Right}
-        isConnectable={isConnectable}
-        className="!w-4 !h-6 !bg-primary !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair shadow-[0_0_8px_rgba(255,0,128,0.4)]"
-      />
+      {isDecision ? (
+        /* Decision node: two output handles — True (top-right) and False (bottom-right) */
+        <>
+          <Handle
+            id="true"
+            type="source"
+            position={Position.Right}
+            isConnectable={isConnectable}
+            style={{ top: '30%' }}
+            className="!w-4 !h-6 !bg-green-500 !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair shadow-[0_0_8px_rgba(34,197,94,0.5)]"
+          />
+          <Handle
+            id="false"
+            type="source"
+            position={Position.Right}
+            isConnectable={isConnectable}
+            style={{ top: '70%' }}
+            className="!w-4 !h-6 !bg-orange-500 !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair shadow-[0_0_8px_rgba(249,115,22,0.5)]"
+          />
+          {/* Labels for handles */}
+          <div className="absolute right-5 top-[28%] -translate-y-1/2 text-[8px] font-bold text-green-400 font-mono tracking-wider pointer-events-none">TRUE</div>
+          <div className="absolute right-5 top-[72%] -translate-y-1/2 text-[8px] font-bold text-orange-400 font-mono tracking-wider pointer-events-none">FALSE</div>
+        </>
+      ) : (
+        <Handle
+          type="source"
+          position={Position.Right}
+          isConnectable={isConnectable}
+          className="!w-4 !h-6 !bg-primary !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair shadow-[0_0_8px_rgba(255,0,128,0.4)]"
+        />
+      )}
 
       {/* Inline Add Node Button — appears on hover */}
       {data.onAddNodeInline && (

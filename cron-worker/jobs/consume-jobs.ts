@@ -5,46 +5,13 @@ import { workflowSchema } from '@/schema/workflow';
 import { WorkflowQueueMessage } from '../types';
 import { WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
 import { WorkflowExecutorEvent } from '@/work-execution-engine/type';
+import { emitter } from '@/work-execution-engine/event-emitter';
 
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
 const WORKERS_COUNT = parseInt(process.env.WORKFLOW_WORKER_COUNT || '10');
 const GROUP_NAME = process.env.WORKFLOW_EXECUTION_GROUP || '';
-const EVENT_CHANNEL = process.env.WORKFLOW_EVENT_CHANNEL || ""
 
-
-async function emitter(event: WorkflowExecutorEvent) {
-  switch (event.type) {
-    case "node:start":
-      await ExecutionService.recordNodeStart(
-        event.executionId,
-        event.nodeId,
-        event.nodeType,
-        event.input
-      );
-      break;
-
-    case "node:success":
-      await ExecutionService.recordNodeSuccess(
-        event.executionId,
-        event.nodeId,
-        event.nodeType,
-        event.result
-      );
-      break;
-
-    case "node:error":
-      await ExecutionService.recordNodeFailure(
-        event.executionId,
-        event.nodeId,
-        event.nodeType,
-        event.error
-      );
-      break;
-  }
-
-  await redis.publish(EVENT_CHANNEL, JSON.stringify(event));
-}
 
 
 async function execute_workflow(workflowId: string, userId: string) {
@@ -68,7 +35,7 @@ async function execute_workflow(workflowId: string, userId: string) {
       parsedWorkflow,
       workflow.userId,
       executingWorkflow.id,
-      emitter
+      emitter.emit.bind(emitter)
     );
 
     await workflowExecutor.executeWorkflow();

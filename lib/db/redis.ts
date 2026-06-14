@@ -2,7 +2,7 @@ import Redis from "ioredis";
 import type { EventSubscriber } from "@/lib/events/workflow-bus";
 
 const redis = new Redis({
-  host: Bun.env.REDIS_HOST,
+  host: process.env.REDIS_HOST,
 });
 
 const subscriber = redis.duplicate();
