@@ -90,13 +90,27 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
         {node.data.type === 'Trigger' && (
           <div className="pt-4 border-t border-border space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-primary uppercase tracking-wider font-mono-data">Trigger Schedule</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-primary uppercase tracking-wider font-mono-data">Trigger Schedule</label>
+                <span className="text-[9px] text-muted-foreground font-mono-data opacity-60">optional</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => onUpdate(node.id, { ...node.data, schedule: undefined })}
+                  className={`flex flex-col items-center justify-center gap-2 p-3 rounded-md border transition-colors ${
+                    !node.data.schedule
+                      ? 'bg-white/5 border-white/20 text-foreground'
+                      : 'bg-background border-border text-muted-foreground hover:border-white/20 hover:text-foreground'
+                  }`}
+                >
+                  <span className="text-base leading-none">∅</span>
+                  <span className="text-[9px] uppercase font-bold tracking-wider">None</span>
+                </button>
                 <button
                   onClick={() => handleScheduleChange({ mode: 'INTERVAL' })}
                   className={`flex flex-col items-center justify-center gap-2 p-3 rounded-md border transition-colors ${
-                    schedule.mode === 'INTERVAL' 
-                      ? 'bg-primary/10 border-primary text-primary' 
+                    schedule.mode === 'INTERVAL' && node.data.schedule
+                      ? 'bg-primary/10 border-primary text-primary'
                       : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                   }`}
                 >
@@ -106,8 +120,8 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                 <button
                   onClick={() => handleScheduleChange({ mode: 'CRON' })}
                   className={`flex flex-col items-center justify-center gap-2 p-3 rounded-md border transition-colors ${
-                    schedule.mode === 'CRON' 
-                      ? 'bg-primary/10 border-primary text-primary' 
+                    schedule.mode === 'CRON' && node.data.schedule
+                      ? 'bg-primary/10 border-primary text-primary'
                       : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                   }`}
                 >
@@ -117,8 +131,8 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                 <button
                   onClick={() => handleScheduleChange({ mode: 'CALENDAR' })}
                   className={`flex flex-col items-center justify-center gap-2 p-3 rounded-md border transition-colors ${
-                    schedule.mode === 'CALENDAR' 
-                      ? 'bg-primary/10 border-primary text-primary' 
+                    schedule.mode === 'CALENDAR' && node.data.schedule
+                      ? 'bg-primary/10 border-primary text-primary'
                       : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                   }`}
                 >
@@ -209,16 +223,17 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
             />
           </div>
         )}
-        <div className="space-y-2 group">
-          <label className="text-[10px] font-bold text-muted-foreground group-focus-within:text-primary uppercase tracking-wider font-mono-data transition-colors">Endpoint URL</label>
-          <input 
-            type="text" 
-            value={node.data.endpoint || ''} 
-            onChange={(e) => handleChange('endpoint', e.target.value)}
-            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50 outline-none transition-all hover:border-white/20"
-            placeholder="https://api.example.com/v1"
-          />
-        </div>
+        {node.data.type !== 'Trigger' && (
+          <div className="space-y-2 group">
+            <label className="text-[10px] font-bold text-muted-foreground group-focus-within:text-primary uppercase tracking-wider font-mono-data transition-colors">Prompt</label>
+            <textarea
+              value={node.data.Prompt || ''}
+              onChange={(e) => handleChange('Prompt', e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50 outline-none transition-all min-h-[100px] resize-none hover:border-white/20"
+              placeholder="Enter the prompt or instruction for this step..."
+            />
+          </div>
+        )}
       </div>
     </motion.div>
   );

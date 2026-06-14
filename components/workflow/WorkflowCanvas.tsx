@@ -21,8 +21,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Workflow } from '@/schema/workflow';
 import { useWorkflowEditorStore } from '@/store/workflow-editor';
 import { NodePickerPopover } from './NodePickerPopover';
-import { updateWorkflow } from '@/lib/api/workflow';
+import { updateWorkflow, runWorkflow } from '@/lib/api/workflow';
 import { toast } from 'sonner';
+import { sseManager } from '@/lib/events/sse';
+import type { NodeStartEvent, NodeSuccessEvent, NodeErrorEvent, WorkflowStartEvent, WorkflowCompleteEvent, WorkflowFailedEvent } from '@/lib/events/sse-events';
 
 
 interface WorkflowCanvasProps {
@@ -62,7 +64,10 @@ export const WorkflowCanvas = ({
     selectedNode,
     setEdges,
     markClean,
+    setWorkflowName,
   } = useWorkflowEditorStore();
+
+  const [editableName, setEditableName] = useState(workflowName || 'Untitled Workflow');
 
   useEffect(() => {
     if (workflow) {
@@ -87,7 +92,108 @@ export const WorkflowCanvas = ({
     setLogs(prev => [...prev, { id: Math.random().toString(), timestamp: new Date(), message, type }]);
   }, []);
 
-  const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+
+    unsubs.push(
+      sseManager.addListener<WorkflowStartEvent>('workflow:start', (e) => {
+        console.log("workflow:start");
+        if (e.workflowId !== workflowId) return;
+        setShowLogsBar(true);
+        setIsLogsExpanded(true);
+        setLogs([]);
+        addLog(`Execution started (id: ${e.executionId})`, 'info');
+        // Reset edge run states
+        const s = useWorkflowEditorStore.getState();
+        s.setEdges(eds => eds.map(ed => ({ ...ed, data: { ...ed.data, runState: 'idle' } })));
+      })
+    );
+
+    unsubs.push(
+      sseManager.addListener<NodeStartEvent>('node:start', (e) => {
+        if (e.workflowId !== workflowId) return;
+        const s = useWorkflowEditorStore.getState();
+        const node = s.nodes.find(n => n.id === e.nodeId);
+        s.updateNodeData(e.nodeId, { ...node?.data, runState: 'running' });
+        addLog(`Running: ${node?.data?.label ?? e.nodeId} [${e.nodeType}]`, 'info');
+      })
+    );
+
+    unsubs.push(
+      sseManager.addListener<NodeSuccessEvent>('node:success', (e) => {
+        if (e.workflowId !== workflowId) return;
+        const s = useWorkflowEditorStore.getState();
+        const node = s.nodes.find(n => n.id === e.nodeId);
+
+        // Mark node as success
+        s.updateNodeData(e.nodeId, { ...node?.data, runState: 'success' });
+        addLog(`Completed: ${node?.data?.label ?? e.nodeId}`, 'success');
+
+        // Animate outgoing edges — for Decision, only the taken branch
+        const result = e.result as any;
+        const takenBranch: string | null = result?.branch ?? null;
+
+        const outgoingEdges = s.edges.filter(edge => edge.source === e.nodeId);
+        outgoingEdges.forEach(edge => {
+          // For decision nodes, only light up the taken branch
+          const edgeBranch = edge.data?.branchPath ?? null;
+          const shouldAnimate = takenBranch === null || edgeBranch === takenBranch || edgeBranch === null;
+          if (!shouldAnimate) return;
+
+          s.setEdges(eds => eds.map(ed =>
+            ed.id === edge.id
+              ? { ...ed, data: { ...ed.data, runState: 'success' } }
+              : ed
+          ));
+
+          // Reset edge back to idle after animation completes
+          setTimeout(() => {
+            s.setEdges(eds => eds.map(ed =>
+              ed.id === edge.id
+                ? { ...ed, data: { ...ed.data, runState: 'idle' } }
+                : ed
+            ));
+          }, 1200);
+        });
+      })
+    );
+
+    unsubs.push(
+      sseManager.addListener<NodeErrorEvent>('node:error', (e) => {
+        if (e.workflowId !== workflowId) return;
+        const s = useWorkflowEditorStore.getState();
+        const node = s.nodes.find(n => n.id === e.nodeId);
+        s.updateNodeData(e.nodeId, { ...node?.data, runState: 'error' });
+        addLog(`Failed: ${node?.data?.label ?? e.nodeId} — ${e.error}`, 'error');
+      })
+    );
+
+    unsubs.push(
+      sseManager.addListener<WorkflowCompleteEvent>('workflow:complete', (e) => {
+        if (e.workflowId !== workflowId) return;
+        setIsTesting(false);
+        addLog('Workflow completed successfully', 'success');
+      })
+    );
+
+    unsubs.push(
+      sseManager.addListener<WorkflowFailedEvent>('workflow:failed', (e) => {
+        console.log("workflow:failed");
+        if (e.workflowId !== workflowId) return;
+        setIsTesting(false);
+        addLog(`Workflow failed: ${e.error}`, 'error');
+      })
+    );
+
+    return () => unsubs.forEach(fn => fn());
+  }, [workflowId, addLog]);
+
+  const nodeTypes = useMemo(() => ({
+    Trigger: CustomNode,
+    Action: CustomNode,
+    Monitor: CustomNode,
+    Decision: CustomNode,
+  }), []);
   const edgeTypes = useMemo(() => ({ custom: CustomEdge }), []);
 
   const onConnect = useCallback(
@@ -100,7 +206,14 @@ export const WorkflowCanvas = ({
           return;
         }
       }
-      storeOnConnect(params);
+
+      // For Decision nodes: inject branchPath from the sourceHandle id ('true'/'false')
+      const isDecisionSource = sourceNode?.data?.type === 'Decision';
+      const branchPath = isDecisionSource && (params.sourceHandle === 'true' || params.sourceHandle === 'false')
+        ? params.sourceHandle
+        : null;
+
+      storeOnConnect({ ...params, data: branchPath ? { branchPath } : undefined } as any);
     },
     [nodes, edges, storeOnConnect, addLog],
   );
@@ -125,7 +238,7 @@ export const WorkflowCanvas = ({
     updateNodeData(id, data);
   }, [updateNodeData]);
 
-  // Add a node at the end of the canvas (from header button)
+
   const addNode = useCallback((nodeType: string) => {
     const currentNodes = useWorkflowEditorStore.getState().nodes;
     const lastNode = currentNodes[currentNodes.length - 1];
@@ -134,13 +247,13 @@ export const WorkflowCanvas = ({
 
     const newNode: Node = {
       id: Math.random().toString(36).substr(2, 9),
-      type: 'custom',
+      type: nodeType,
       position: { x: newX, y: newY },
       data: {
         label: `New ${nodeType}`,
         type: nodeType,
         description: 'Configure this step',
-        endpoint: 'https://api.example.com/new',
+        prompt: '',
       },
     };
 
@@ -159,13 +272,13 @@ export const WorkflowCanvas = ({
 
     const newNode: Node = {
       id: newNodeId,
-      type: 'custom',
+      type: nodeType,
       position: { x: newX, y: newY },
       data: {
         label: `New ${nodeType}`,
         type: nodeType,
         description: 'Configure this step',
-        endpoint: 'https://api.example.com/new',
+        prompt: '',
       },
     };
 
@@ -184,7 +297,7 @@ export const WorkflowCanvas = ({
     ]);
   }, [storeAddNode]);
 
-  const handleTest = useCallback(async () => {
+  const handleRun = useCallback(async () => {
     if (isTesting) return;
 
     // Trigger check before run
@@ -202,93 +315,22 @@ export const WorkflowCanvas = ({
     setIsTesting(true);
     setShowLogsBar(true);
     setLogs([]);
-    addLog('Started workflow execution', 'info');
+    addLog('Queueing workflow execution...', 'info');
 
-    const currentNodes = useWorkflowEditorStore.getState().nodes;
-    const currentEdges = useWorkflowEditorStore.getState().edges;
-
-    // Reset run states using fresh store reference
+    // Reset all node/edge run states
     const freshStore = useWorkflowEditorStore.getState();
     freshStore.nodes.forEach(n => freshStore.updateNodeData(n.id, { ...n.data, runState: 'idle' }));
     freshStore.setEdges((eds: Edge[]) => eds.map(e => ({ ...e, data: { ...e.data, runState: 'idle' } })));
 
-    const incomingCount = new Map<string, number>();
-    currentNodes.forEach(n => incomingCount.set(n.id, 0));
-    currentEdges.forEach(e => incomingCount.set(e.target, (incomingCount.get(e.target) || 0) + 1));
-    const rootNodes = currentNodes.filter(n => incomingCount.get(n.id) === 0).map(n => n.id);
+    try {
+      await runWorkflow(workflowId);
+      addLog('Workflow queued — waiting for execution events...', 'info');
+    } catch (err: any) {
+      addLog(`Failed to queue workflow: ${err?.message ?? 'Unknown error'}`, 'error');
+      setIsTesting(false);
+    }
+  }, [isTesting, addLog, workflowId]);
 
-    if (!rootNodes.length) { setIsTesting(false); return; }
-
-    let activeBranches = rootNodes.length;
-
-    const checkEnd = () => {
-      if (activeBranches === 0) {
-        setTimeout(() => {
-          const s = useWorkflowEditorStore.getState();
-          s.nodes.forEach(n =>
-            s.updateNodeData(n.id, { ...n.data, runState: 'idle' })
-          );
-          s.setEdges((eds: Edge[]) => eds.map(e => ({ ...e, data: { ...e.data, runState: 'idle' } })));
-          setIsTesting(false);
-          addLog('Workflow execution finished', 'info');
-        }, 2000);
-      }
-    };
-
-    const runNode = (nodeId: string) => {
-      const s = useWorkflowEditorStore.getState();
-      const currentNode = s.nodes.find(n => n.id === nodeId);
-      const nodeName = currentNode?.data?.label || nodeId;
-      addLog(`Running node: ${nodeName}...`, 'info');
-      s.updateNodeData(nodeId, { ...currentNode?.data, runState: 'running' });
-
-      setTimeout(() => {
-        const s2 = useWorkflowEditorStore.getState();
-        const node2 = s2.nodes.find(n => n.id === nodeId);
-        const isError = Math.random() > 0.9;
-        s2.updateNodeData(nodeId, { ...node2?.data, runState: isError ? 'error' : 'success' });
-
-        if (isError) {
-          addLog(`Node failed: ${nodeName}`, 'error');
-          activeBranches--;
-          checkEnd();
-        } else {
-          addLog(`Node completed: ${nodeName}`, 'success');
-          const outgoing = s2.edges.filter(e => e.source === nodeId);
-          if (!outgoing.length) { activeBranches--; checkEnd(); return; }
-
-          const isDecision = node2?.data?.type === 'Decision';
-          const edgesToRun = isDecision
-            ? [outgoing[Math.floor(Math.random() * outgoing.length)]]
-            : outgoing;
-
-          activeBranches += edgesToRun.length - 1;
-
-          // Animate edges: set running
-          s2.setEdges((eds: Edge[]) => eds.map(e =>
-            edgesToRun.some(oe => oe.id === e.id)
-              ? { ...e, data: { ...e.data, runState: 'running' } }
-              : e
-          ));
-
-          setTimeout(() => {
-            // Animate edges: set success
-            const s3 = useWorkflowEditorStore.getState();
-            s3.setEdges((eds: Edge[]) => eds.map(e =>
-              edgesToRun.some(oe => oe.id === e.id)
-                ? { ...e, data: { ...e.data, runState: 'success' } }
-                : e
-            ));
-            edgesToRun.forEach(e => runNode(e.target));
-          }, 1000);
-        }
-      }, 1500);
-    };
-
-    rootNodes.forEach(rootId => runNode(rootId));
-  }, [isTesting, addLog]);
-
-  // ─── Core save function (no trigger check — used for autosave) ───────────
   const saveToServer = useCallback(async (): Promise<boolean> => {
     const store = useWorkflowEditorStore.getState();
     if (!store.isDirty) return true; // nothing to save
@@ -297,16 +339,18 @@ export const WorkflowCanvas = ({
     setIsSaving(true);
     try {
       await updateWorkflow(workflowId, {
+        name: store.workflowName || undefined,
         workflow: {
           graph: {
-            nodes: n.map(({ id, type, data, position }) => ({ id, type: type ?? 'custom', data, position })),
+            nodes: n.map(({ id, type, data, position }) => ({ id, type: type ?? data?.type ?? 'Action', data, position })),
             edges: e.map(({ id, source, target, sourceHandle, targetHandle, data }) => ({
               id,
               source,
               target,
               sourceHandle: sourceHandle ?? undefined,
               targetHandle: targetHandle ?? undefined,
-              data
+              // strip ephemeral runState, only persist branchPath
+              data: data?.branchPath ? { branchPath: data.branchPath } : undefined,
             })),
           },
         },
@@ -321,7 +365,6 @@ export const WorkflowCanvas = ({
     }
   }, [workflowId, markClean]);
 
-  // ─── Debounced autosave: fires 1.5s after last node/edge change ──────────
   useEffect(() => {
     if (!isDirty) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -331,23 +374,21 @@ export const WorkflowCanvas = ({
     };
   }, [nodes, edges, isDirty, saveToServer]);
 
-  // ─── Save on unmount (client-side route change) ──────────────────────────
+
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (useWorkflowEditorStore.getState().isDirty) {
-        // fire-and-forget; we can't await in a cleanup
+
         saveToServer();
       }
     };
   }, [saveToServer]);
 
-  // ─── Save on browser close / refresh ────────────────────────────────────
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (useWorkflowEditorStore.getState().isDirty) {
-        // Attempt best-effort sync save via sendBeacon is unreliable for JSON;
-        // trigger browser's native "unsaved changes" dialog as a fallback.
+
         e.preventDefault();
       }
     };
@@ -355,7 +396,6 @@ export const WorkflowCanvas = ({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  // ─── Manual Save: trigger check first, then saveToServer ────────────────
   const handleSave = useCallback(async () => {
     if (isSaving) return;
     const currentNodes = useWorkflowEditorStore.getState().nodes;
@@ -369,7 +409,7 @@ export const WorkflowCanvas = ({
     else toast.error('Failed to save workflow.');
   }, [isSaving, saveToServer]);
 
-  // Inject the inline-add callback into every node's data for CustomNode to use
+
   const reactFlowNodes = useMemo(() => nodes.map(n => ({
     ...n,
     data: { ...n.data, onAddNodeInline: handleAddNodeInline }
@@ -389,7 +429,18 @@ export const WorkflowCanvas = ({
           <div className="h-8 w-px bg-border mx-2" />
           <div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-mono-data mb-1">Project / Workflow</div>
-            <h2 className="text-xl font-bold text-foreground tracking-tight">{workflowName}</h2>
+            <input
+              type="text"
+              value={editableName}
+              onChange={(e) => {
+                setEditableName(e.target.value);
+                setWorkflowName(e.target.value);
+              }}
+              className="text-xl font-bold text-foreground tracking-tight bg-transparent border-none outline-none w-full hover:text-primary focus:text-primary transition-colors cursor-text min-w-[120px] max-w-[300px]"
+              style={{ width: `${Math.max(editableName.length, 8)}ch` }}
+              placeholder="Untitled Workflow"
+              aria-label="Workflow name"
+            />
           </div>
 
           {/* Save status pill */}
@@ -424,11 +475,11 @@ export const WorkflowCanvas = ({
             variant="outline"
             size="md"
             className="border-border hover:border-primary/50"
-            onClick={handleTest}
+            onClick={handleRun}
             disabled={isTesting}
           >
             <Play className="w-4 h-4 mr-2" />
-            {isTesting ? 'Testing...' : 'Test'}
+            {isTesting ? 'Runing...' : 'Run'}
           </Button>
           <Button
             size="md"

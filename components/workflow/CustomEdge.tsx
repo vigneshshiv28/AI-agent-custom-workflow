@@ -1,8 +1,9 @@
-import React from 'react';
-import { BaseEdge, EdgeProps, getBezierPath } from 'reactflow';
-import { motion } from 'motion/react';
+import React, { useId } from 'react';
+import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from 'reactflow';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const CustomEdge = ({
+  id,
   sourceX,
   sourceY,
   sourcePosition,
@@ -13,7 +14,7 @@ export const CustomEdge = ({
   markerEnd,
   data,
 }: EdgeProps) => {
-  const [edgePath] = getBezierPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -22,35 +23,162 @@ export const CustomEdge = ({
     targetPosition,
   });
 
-  const runState = data?.runState || 'idle';
+  const uid = useId();
+  const pathId = `edge-path-${uid}`;
+
+  const runState: 'idle' | 'running' | 'success' | 'error' = data?.runState || 'idle';
+  const branchPath: 'true' | 'false' | null = data?.branchPath ?? null;
+
+  // Colors
+  const branchColor =
+    branchPath === 'true'
+      ? '#22c55e'   // green
+      : branchPath === 'false'
+      ? '#f97316'   // orange-red
+      : 'oklch(0.75 0.18 330)';
+
+  const activeColor =
+    runState === 'error' ? '#ef4444' : branchColor;
 
   return (
     <>
+      {/* Invisible path definition for animateMotion */}
+      <defs>
+        <path id={pathId} d={edgePath} />
+      </defs>
+
+      {/* Static base track */}
       <BaseEdge
         path={edgePath}
         markerEnd={markerEnd}
         interactionWidth={20}
         style={{
           ...style,
-          stroke: 'oklch(0.75 0.18 330 / 0.3)',
-          strokeWidth: 2,
-          cursor: 'grab'
+          stroke: activeColor,
+          strokeWidth: 3.5,
+          opacity: runState === 'idle' ? 0.22 : runState === 'error' ? 0.8 : 0.4,
+          cursor: 'grab',
+          transition: 'opacity 0.4s, stroke 0.3s',
         }}
       />
-      <motion.path
-        d={edgePath}
-        fill="none"
-        stroke="oklch(0.75 0.18 330)"
-        strokeWidth={3}
-        pathLength="1"
-        initial={{ strokeDasharray: "1 1", strokeDashoffset: 1, opacity: 0 }}
-        animate={{ 
-          strokeDashoffset: runState === 'running' || runState === 'success' ? 0 : 1,
-          opacity: runState === 'idle' ? 0 : 1
-        }}
-        transition={{ duration: 1, ease: "linear" }}
-        style={{ animation: 'none' }}
-      />
+
+      {/* Running: animated marching dashes */}
+      <AnimatePresence>
+        {runState === 'running' && (
+          <motion.path
+            key="running-dashes"
+            d={edgePath}
+            fill="none"
+            stroke={activeColor}
+            strokeWidth={4}
+            strokeDasharray="8 10"
+            strokeLinecap="round"
+            initial={{ strokeDashoffset: 36, opacity: 0 }}
+            animate={{ strokeDashoffset: 0, opacity: 0.9 }}
+            exit={{ opacity: 0, transition: { duration: 0.2 } }}
+            transition={{
+              strokeDashoffset: { duration: 0.5, repeat: Infinity, ease: 'linear' },
+              opacity: { duration: 0.2 },
+            }}
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Success: path sweep from source to target */}
+      <AnimatePresence>
+        {runState === 'success' && (
+          <motion.path
+            key="success-sweep"
+            d={edgePath}
+            fill="none"
+            stroke={activeColor}
+            strokeWidth={5}
+            strokeLinecap="round"
+            pathLength="1"
+            initial={{ pathLength: 0, opacity: 1 }}
+            animate={{ pathLength: 1, opacity: [1, 1, 0.3] }}
+            exit={{ opacity: 0, transition: { duration: 0.3 } }}
+            transition={{
+              pathLength: { duration: 0.55, ease: [0.4, 0, 0.2, 1] },
+              opacity: { duration: 1.0, times: [0, 0.5, 1] },
+            }}
+            style={{
+              pointerEvents: 'none',
+              filter: `drop-shadow(0 0 4px ${activeColor})`,
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Success: glowing dot traveling along the path using SVG animateMotion */}
+      <AnimatePresence>
+        {runState === 'success' && (
+          <motion.g
+            key="success-particle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 1, 0] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, times: [0, 0.1, 0.8, 1], ease: 'easeOut' }}
+            style={{ pointerEvents: 'none' }}
+          >
+            {/* Outer glow */}
+            <circle r={7} fill={activeColor} opacity={0.3}>
+              <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
+                <mpath href={`#${pathId}`} />
+              </animateMotion>
+            </circle>
+            {/* Core dot */}
+            <circle r={4} fill={activeColor}>
+              <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
+                <mpath href={`#${pathId}`} />
+              </animateMotion>
+            </circle>
+            {/* Bright center */}
+            <circle r={2} fill="white" opacity={0.9}>
+              <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
+                <mpath href={`#${pathId}`} />
+              </animateMotion>
+            </circle>
+          </motion.g>
+        )}
+      </AnimatePresence>
+
+      {/* Branch label */}
+      {branchPath && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: 'all',
+              zIndex: 10,
+            }}
+          >
+            <div
+              style={{
+                background: branchPath === 'true'
+                  ? 'rgba(34,197,94,0.12)'
+                  : 'rgba(249,115,22,0.12)',
+                border: `1px solid ${branchPath === 'true' ? 'rgba(34,197,94,0.5)' : 'rgba(249,115,22,0.5)'}`,
+                color: branchPath === 'true' ? '#22c55e' : '#f97316',
+                borderRadius: '4px',
+                padding: '2px 8px',
+                fontSize: '9px',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                backdropFilter: 'blur(4px)',
+                userSelect: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {branchPath}
+            </div>
+          </div>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 };

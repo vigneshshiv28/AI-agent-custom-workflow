@@ -5,6 +5,7 @@ import { AgentNodeOutput, ConditionNodeOutput, WorkflowExecutorEvent, ExecutionC
 import { ExecutionService } from "@/lib/services";
 import { createExecutionContext } from "./execution-context";
 import { retry } from "./retry";
+import { measureExecutionTimeSync } from "./profiler";
 
 
 
@@ -32,11 +33,7 @@ export class WorkflowExecutor {
     this.startNode = this.findStartNode()
     this.emit = emit
 
-    if (!this.startNode) {
-      throw new Error("Workflow is invalid no starting node found")
-    }
-
-    this.constructGraph()
+    measureExecutionTimeSync("constructGraph", () => this.constructGraph());
   }
 
   private constructGraph() {
@@ -59,7 +56,7 @@ export class WorkflowExecutor {
 
 
   private findStartNode() {
-    const startNode = this.workflow.graph.nodes.find((n) => n.type === "start")
+    const startNode = this.workflow.graph.nodes.find((n) => n.type === "Trigger")
     return startNode || null
   }
 
@@ -92,6 +89,8 @@ export class WorkflowExecutor {
 
     let queue: Node[] = [];
     if (!this.startNode) {
+
+      console.log("emiiting workflow failure event");
       await this.emit({
         type: "workflow:failed",
         executionId: this.executionId,
@@ -99,7 +98,7 @@ export class WorkflowExecutor {
         userId: this.userId,
         timestamp: Date.now(),
         error: "Workflow is invalid no starting node found"
-      })
+      });
       throw new Error("Workflow is invalid no starting node found");
     }
 
@@ -129,7 +128,7 @@ export class WorkflowExecutor {
       for (const { node, output } of results) {
         const children = this.graph.get(node) ?? [];
 
-        if (node.type === "condition") {
+        if (node.type === "Decision") {
           const branch = (output as ConditionNodeOutput).branch;
           const nextChild = children.find((c) => c.branchPath === branch);
 
@@ -179,19 +178,19 @@ export class WorkflowExecutor {
       let result: AgentNodeOutput | ConditionNodeOutput;
 
       switch (node.type) {
-        case "start":
+        case "Trigger":
           result = { text: "", data: {} };
           break;
 
-        case "weather_agent":
-          result = await runWeatherAgent(node.data?.userPrompt ?? "", input);
+        case "Action":
+          result = await runWeatherAgent(node.data?.Prompt ?? "", input);
           break;
 
-        case "summarizer_agent":
-          result = await runSummarizer(node.data?.userPrompt ?? "", input);
+        case "Monitor":
+          result = await runSummarizer(node.data?.Prompt ?? "", input);
           break;
 
-        case "condition":
+        case "Decision":
           const { variable, operator, value } = node.data
           const actual = input?.data?.[variable]
 

@@ -29,9 +29,17 @@ export class WorkflowBus {
     this.handlers.get(event)?.add(handler);
   }
 
-  off(event: string): void {
-    this.handlers.delete(event);
-    this.subscriber.unsubscribe(event)
+  off(event: string, handler?: (data: unknown) => void): void {
+    if (handler) {
+      this.handlers.get(event)?.delete(handler);
+      if (this.handlers.get(event)?.size === 0) {
+        this.handlers.delete(event);
+        this.subscriber.unsubscribe(event);
+      }
+    } else {
+      this.handlers.delete(event);
+      this.subscriber.unsubscribe(event);
+    }
   }
 }
 

@@ -27,6 +27,12 @@ export async function createWorkflow(): Promise<CreateWorkflowResponse> {
     });
 }
 
+export async function runWorkflow(workflowId: string): Promise<{ message: string; messageId: string; triggeredAt: string }> {
+    return apiFetch(`/api/workflow/${workflowId}/run`, {
+        method: 'POST',
+    });
+}
+
 export async function updateWorkflow(
     workflowId: string,
     body: UpdateWorkflowBody
