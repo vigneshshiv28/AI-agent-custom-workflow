@@ -5,7 +5,7 @@ import { AgentNodeOutput, ConditionNodeOutput, WorkflowExecutorEvent, ExecutionC
 import { ExecutionService } from "@/lib/services";
 import { createExecutionContext } from "./execution-context";
 import { retry } from "./retry";
-import { measureExecutionTimeSync } from "./profiler";
+import { measureExecutionTime, measureExecutionTimeSync } from "./profiler";
 
 
 
@@ -30,7 +30,7 @@ export class WorkflowExecutor {
     this.workflow = workflow
     this.executionId = executionId
     this.graph = new Map<Node, { node: Node; branchPath: "true" | "false" | null }[]>()
-    this.startNode = this.findStartNode()
+    this.startNode = measureExecutionTimeSync("findStartNode", () => this.findStartNode());
     this.emit = emit
 
     measureExecutionTimeSync("constructGraph", () => this.constructGraph());
@@ -89,8 +89,6 @@ export class WorkflowExecutor {
 
     let queue: Node[] = [];
     if (!this.startNode) {
-
-      console.log("emiiting workflow failure event");
       await this.emit({
         type: "workflow:failed",
         executionId: this.executionId,
@@ -192,6 +190,10 @@ export class WorkflowExecutor {
 
         case "Decision":
           const { variable, operator, value } = node.data
+          console.log("variable:", variable);
+          console.log("operator:", operator);
+
+          console.log("value:", value);
           const actual = input?.data?.[variable]
 
           let branch: "true" | "false" = "false";

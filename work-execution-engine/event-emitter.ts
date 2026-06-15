@@ -10,7 +10,6 @@ class EventEmitter {
 
     async emit(event: WorkflowExecutorEvent) {
 
-        console.log("in  event emiiter")
         switch (event.type) {
             case "node:start": {
                 await ExecutionService.recordNodeStart(
@@ -69,7 +68,6 @@ class EventEmitter {
             }
         }
 
-        console.log("event emiited", event);
         await this.publisher.publish(
             `workflow-events:${event.userId}`,
             event,

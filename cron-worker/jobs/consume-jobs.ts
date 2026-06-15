@@ -139,6 +139,12 @@ async function worker(workerId: number) {
 
 await initializeConsumerGroup();
 
-const workers = Array.from({ length: WORKERS_COUNT }, (_, i) => worker(i + 1));
+const workerIdArg = process.argv[2];
+const workerId = workerIdArg ? parseInt(workerIdArg, 10) : 1;
 
-await Promise.all(workers);
+if (isNaN(workerId)) {
+  console.error('Please provide a valid worker ID as a CLI argument.');
+  process.exit(1);
+}
+
+await worker(workerId);
