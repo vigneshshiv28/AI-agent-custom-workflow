@@ -2,18 +2,25 @@ import React, { useId } from 'react';
 import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from 'reactflow';
 import { motion, AnimatePresence } from 'motion/react';
 
+interface CustomEdgeData {
+  runState?: 'idle' | 'running' | 'success' | 'error';
+  branchPath?: 'true' | 'false' | null;
+}
+
 export const CustomEdge = ({
   id,
+  source,
   sourceX,
   sourceY,
   sourcePosition,
+  sourceHandleId,
   targetX,
   targetY,
   targetPosition,
   style = {},
   markerEnd,
   data,
-}: EdgeProps) => {
+}: EdgeProps<CustomEdgeData>) => {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -27,14 +34,24 @@ export const CustomEdge = ({
   const pathId = `edge-path-${uid}`;
 
   const runState: 'idle' | 'running' | 'success' | 'error' = data?.runState || 'idle';
-  const branchPath: 'true' | 'false' | null = data?.branchPath ?? null;
+
+  // Branch identity comes solely from sourceHandleId (which output handle the edge is connected to).
+  // No fallback to data.branchPath — if the edge moves to a normal node, the label must disappear.
+  const branchPath: 'true' | 'false' | null =
+    sourceHandleId === 'true' || sourceHandleId === 'false'
+      ? sourceHandleId
+      : null;
+
+  // Midpoint for the + button (slightly off label to avoid overlap with branch badge)
+  const midX = labelX;
+  const midY = labelY;
 
   // Colors
   const branchColor =
     branchPath === 'true'
       ? '#22c55e'   // green
       : branchPath === 'false'
-      ? '#f97316'   // orange-red
+      ? '#f97316'   // orange
       : 'oklch(0.75 0.18 330)';
 
   const activeColor =
@@ -111,7 +128,7 @@ export const CustomEdge = ({
         )}
       </AnimatePresence>
 
-      {/* Success: glowing dot traveling along the path using SVG animateMotion */}
+      {/* Success: glowing dot traveling along the path */}
       <AnimatePresence>
         {runState === 'success' && (
           <motion.g
@@ -122,19 +139,16 @@ export const CustomEdge = ({
             transition={{ duration: 0.7, times: [0, 0.1, 0.8, 1], ease: 'easeOut' }}
             style={{ pointerEvents: 'none' }}
           >
-            {/* Outer glow */}
             <circle r={7} fill={activeColor} opacity={0.3}>
               <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
                 <mpath href={`#${pathId}`} />
               </animateMotion>
             </circle>
-            {/* Core dot */}
             <circle r={4} fill={activeColor}>
               <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
                 <mpath href={`#${pathId}`} />
               </animateMotion>
             </circle>
-            {/* Bright center */}
             <circle r={2} fill="white" opacity={0.9}>
               <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
                 <mpath href={`#${pathId}`} />
@@ -144,14 +158,14 @@ export const CustomEdge = ({
         )}
       </AnimatePresence>
 
-      {/* Branch label */}
-      {branchPath && (
-        <EdgeLabelRenderer>
+      <EdgeLabelRenderer>
+        {/* Branch label */}
+        {branchPath && (
           <div
             style={{
               position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-              pointerEvents: 'all',
+              transform: `translate(-50%, -50%) translate(${midX}px,${midY - 18}px)`,
+              pointerEvents: 'none',
               zIndex: 10,
             }}
           >
@@ -177,8 +191,9 @@ export const CustomEdge = ({
               {branchPath}
             </div>
           </div>
-        </EdgeLabelRenderer>
-      )}
+        )}
+
+      </EdgeLabelRenderer>
     </>
   );
 };

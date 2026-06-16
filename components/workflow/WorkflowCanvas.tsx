@@ -136,7 +136,9 @@ export const WorkflowCanvas = ({
         const outgoingEdges = s.edges.filter(edge => edge.source === e.nodeId);
         outgoingEdges.forEach(edge => {
           // For decision nodes, only light up the taken branch
-          const edgeBranch = edge.data?.branchPath ?? null;
+          const edgeBranch = edge.sourceHandle === 'true' || edge.sourceHandle === 'false'
+            ? edge.sourceHandle
+            : (edge.data?.branchPath ?? null);
           const shouldAnimate = takenBranch === null || edgeBranch === takenBranch || edgeBranch === null;
           if (!shouldAnimate) return;
 
@@ -221,12 +223,17 @@ export const WorkflowCanvas = ({
   const onEdgeUpdate = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
       const store = useWorkflowEditorStore.getState();
-      // Preserve branchPath when reconnecting a Decision node edge
+      // Re-derive branchPath from the NEW sourceHandle so switching
+      // a Decision edge from 'false' handle to 'true' handle is reflected immediately
+      const newBranchPath =
+        newConnection.sourceHandle === 'true' || newConnection.sourceHandle === 'false'
+          ? newConnection.sourceHandle
+          : undefined;
       store.setEdges?.((els: Edge[]) => {
         const reconnected = reconnectEdge(oldEdge, newConnection, els);
         return reconnected.map(ed =>
           ed.id === oldEdge.id
-            ? { ...ed, data: { ...(ed.data ?? {}), branchPath: oldEdge.data?.branchPath ?? undefined } }
+            ? { ...ed, data: { ...(ed.data ?? {}), branchPath: newBranchPath } }
             : ed
         );
       });
@@ -552,6 +559,7 @@ export const WorkflowCanvas = ({
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onEdgeUpdate={onEdgeUpdate}
+          edgesUpdatable
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}

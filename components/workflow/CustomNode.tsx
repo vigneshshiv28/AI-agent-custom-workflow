@@ -38,6 +38,12 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
   const isTrigger = data.type === 'Trigger';
   const isDecision = data.type === 'Decision';
 
+  const handleInlineAdd = (nodeType: string) => {
+    if (data.onAddNodeInline) {
+      data.onAddNodeInline(id, nodeType);
+    }
+  };
+
   let scheduleText = 'Not scheduled';
   if (isTrigger && data.schedule) {
     if (data.schedule.mode === 'INTERVAL') {
@@ -50,11 +56,7 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
     }
   }
 
-  const handleInlineAdd = (nodeType: string) => {
-    if (data.onAddNodeInline) {
-      data.onAddNodeInline(id, nodeType);
-    }
-  };
+
 
   return (
     <motion.div 
@@ -215,8 +217,8 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
         />
       )}
       
+      {/* Decision node: two output handles — True (top-right) and False (bottom-right) */}
       {isDecision ? (
-        /* Decision node: two output handles — True (top-right) and False (bottom-right) */
         <>
           <Handle
             id="true"
@@ -247,10 +249,23 @@ export const CustomNode = memo(({ id, data, isConnectable }: NodeProps) => {
         />
       )}
 
-      {/* Inline Add Node Button — appears on hover */}
-      {data.onAddNodeInline && (
-        <NodePickerPopover onSelect={handleInlineAdd} side="right" align="center" />
-      )}
+      {/* Inline Add Button on Hover */}
+      <div className="absolute right-[-28px] top-1/2 -translate-y-1/2 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
+        <NodePickerPopover onSelect={handleInlineAdd} side="right" align="center">
+          <button 
+            className="w-6 h-6 rounded-full bg-card border-2 border-border flex items-center justify-center text-muted-foreground hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all shadow-lg hover:scale-110 nodrag nopan"
+            style={{
+              fontSize: '14px',
+              lineHeight: 1,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+            title="Add next node"
+          >
+            +
+          </button>
+        </NodePickerPopover>
+      </div>
     </motion.div>
   );
 });
