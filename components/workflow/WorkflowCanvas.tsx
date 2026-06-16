@@ -221,7 +221,15 @@ export const WorkflowCanvas = ({
   const onEdgeUpdate = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
       const store = useWorkflowEditorStore.getState();
-      store.setEdges?.((els: Edge[]) => reconnectEdge(oldEdge, newConnection, els));
+      // Preserve branchPath when reconnecting a Decision node edge
+      store.setEdges?.((els: Edge[]) => {
+        const reconnected = reconnectEdge(oldEdge, newConnection, els);
+        return reconnected.map(ed =>
+          ed.id === oldEdge.id
+            ? { ...ed, data: { ...(ed.data ?? {}), branchPath: oldEdge.data?.branchPath ?? undefined } }
+            : ed
+        );
+      });
     },
     [],
   );
@@ -284,7 +292,8 @@ export const WorkflowCanvas = ({
 
     storeAddNode(newNode);
 
-    // Add connecting edge from source to new node
+
+    const isDecisionSource = sourceNode.data?.type === 'Decision';
     store.setEdges((eds: Edge[]) => [
       ...eds,
       {
@@ -293,6 +302,7 @@ export const WorkflowCanvas = ({
         target: newNodeId,
         type: 'custom',
         animated: true,
+        ...(isDecisionSource ? {} : {}),
       },
     ]);
   }, [storeAddNode]);
@@ -343,15 +353,21 @@ export const WorkflowCanvas = ({
         workflow: {
           graph: {
             nodes: n.map(({ id, type, data, position }) => ({ id, type: type ?? data?.type ?? 'Action', data, position })),
-            edges: e.map(({ id, source, target, sourceHandle, targetHandle, data }) => ({
-              id,
-              source,
-              target,
-              sourceHandle: sourceHandle ?? undefined,
-              targetHandle: targetHandle ?? undefined,
-              // strip ephemeral runState, only persist branchPath
-              data: data?.branchPath ? { branchPath: data.branchPath } : undefined,
-            })),
+            edges: e.map(({ id, source, target, sourceHandle, targetHandle, data }) => {
+
+              const branchPath: 'true' | 'false' | undefined =
+                data?.branchPath ??
+                (sourceHandle === 'true' || sourceHandle === 'false' ? sourceHandle : undefined);
+              return {
+                id,
+                source,
+                target,
+                sourceHandle: sourceHandle ?? undefined,
+                targetHandle: targetHandle ?? undefined,
+
+                data: branchPath ? { branchPath } : undefined,
+              };
+            }),
           },
         },
       });

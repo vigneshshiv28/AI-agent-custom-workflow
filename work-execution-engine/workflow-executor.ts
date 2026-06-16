@@ -49,7 +49,14 @@ export class WorkflowExecutor {
       const targetNode = idToNode.get(edge.target);
 
       if (sourceNode && targetNode) {
-        this.graph.get(sourceNode)?.push({ node: targetNode, branchPath: edge?.data?.branchPath ?? null });
+        // branchPath may live in data.branchPath OR fall back to sourceHandle
+        // (the frontend sometimes only persists sourceHandle for Decision edges)
+        const branchPath: "true" | "false" | null =
+          edge?.data?.branchPath ??
+          (edge.sourceHandle === "true" || edge.sourceHandle === "false"
+            ? edge.sourceHandle
+            : null);
+        this.graph.get(sourceNode)?.push({ node: targetNode, branchPath });
       }
     }
   }
@@ -73,9 +80,13 @@ export class WorkflowExecutor {
       return undefined;
     }
 
-    return context.outputs[
-      parentEdge.source
-    ];
+    const parentOutput = context.outputs[parentEdge.source];
+
+    if (parentOutput && "branch" in parentOutput && "output" in parentOutput) {
+      return parentOutput.output as AgentNodeOutput;
+    }
+
+    return parentOutput;
   }
 
   public async executeWorkflow() {
@@ -115,9 +126,36 @@ export class WorkflowExecutor {
 
       const results = await Promise.all(
         currentBatch.map(async (node) => {
-          const output = await retry(() => this.processNode(node, context), 3, 1000);
-          context.outputs[node.id] = output;
-          return { node, output };
+
+          try {
+            context.outputs[node.id] = await retry(() => this.processNode(node, context), 3, 1000);
+          } catch (error: any) {
+            console.log("Error processing node", error);
+            context.errors[node.id] = error?.message;
+
+
+            await this.emit({
+              type: "node:error",
+              executionId: this.executionId,
+              workflowId: this.workflowId,
+              userId: this.userId,
+              nodeId: node.id,
+              nodeType: node.type,
+              error: error.message,
+              timestamp: Date.now(),
+            });
+
+            await this.emit({
+              type: "workflow:failed",
+              executionId: this.executionId,
+              workflowId: this.workflowId,
+              userId: this.userId,
+              timestamp: Date.now(),
+              error: error.message
+            });
+
+          }
+          return { node, output: context.outputs[node.id] };
         })
       );
 
@@ -127,7 +165,11 @@ export class WorkflowExecutor {
         const children = this.graph.get(node) ?? [];
 
         if (node.type === "Decision") {
+          console.log("Decision Node", node);
+          console.log("Decision Node Output", output);
           const branch = (output as ConditionNodeOutput).branch;
+          console.log("branch", branch);
+          console.log("children", children);
           const nextChild = children.find((c) => c.branchPath === branch);
 
           if (nextChild) {
