@@ -9,7 +9,6 @@ interface CustomEdgeData {
 
 export const CustomEdge = ({
   id,
-  source,
   sourceX,
   sourceY,
   sourcePosition,
@@ -20,6 +19,7 @@ export const CustomEdge = ({
   style = {},
   markerEnd,
   data,
+  selected,
 }: EdgeProps<CustomEdgeData>) => {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -35,31 +35,35 @@ export const CustomEdge = ({
 
   const runState: 'idle' | 'running' | 'success' | 'error' = data?.runState || 'idle';
 
-  // Branch identity comes solely from sourceHandleId (which output handle the edge is connected to).
-  // No fallback to data.branchPath — if the edge moves to a normal node, the label must disappear.
+  // Branch identity from sourceHandleId
   const branchPath: 'true' | 'false' | null =
     sourceHandleId === 'true' || sourceHandleId === 'false'
       ? sourceHandleId
       : null;
 
-  // Midpoint for the + button (slightly off label to avoid overlap with branch badge)
-  const midX = labelX;
-  const midY = labelY;
-
-  // Colors
+  // Color per branch — hex only, oklch is unreliable in SVG stroke attributes
   const branchColor =
     branchPath === 'true'
-      ? '#22c55e'   // green
+      ? '#22c55e'
       : branchPath === 'false'
-      ? '#f97316'   // orange
-      : 'oklch(0.75 0.18 330)';
+        ? '#f97316'
+        : '#d17bb5';
 
   const activeColor =
     runState === 'error' ? '#ef4444' : branchColor;
 
+  const baseOpacity =
+    selected
+      ? 0.8
+      : runState === 'idle'
+        ? 0.22
+        : runState === 'error'
+          ? 0.8
+          : 0.4;
+
   return (
     <>
-      {/* Invisible path definition for animateMotion */}
+      {/* Path def for animateMotion */}
       <defs>
         <path id={pathId} d={edgePath} />
       </defs>
@@ -73,7 +77,7 @@ export const CustomEdge = ({
           ...style,
           stroke: activeColor,
           strokeWidth: 3.5,
-          opacity: runState === 'idle' ? 0.22 : runState === 'error' ? 0.8 : 0.4,
+          opacity: baseOpacity,
           cursor: 'grab',
           transition: 'opacity 0.4s, stroke 0.3s',
         }}
@@ -87,15 +91,15 @@ export const CustomEdge = ({
             d={edgePath}
             fill="none"
             stroke={activeColor}
-            strokeWidth={4}
-            strokeDasharray="8 10"
+            strokeWidth={3}
+            strokeDasharray="6 10"
             strokeLinecap="round"
-            initial={{ strokeDashoffset: 36, opacity: 0 }}
-            animate={{ strokeDashoffset: 0, opacity: 0.9 }}
+            initial={{ strokeDashoffset: 0, opacity: 0 }}
+            animate={{ strokeDashoffset: -16, opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.2 } }}
             transition={{
-              strokeDashoffset: { duration: 0.5, repeat: Infinity, ease: 'linear' },
-              opacity: { duration: 0.2 },
+              strokeDashoffset: { duration: 0.4, repeat: Infinity, ease: 'linear' },
+              opacity: { duration: 0.15 },
             }}
             style={{ pointerEvents: 'none' }}
           />
@@ -158,13 +162,13 @@ export const CustomEdge = ({
         )}
       </AnimatePresence>
 
+      {/* Branch label — rendered outside SVG via EdgeLabelRenderer */}
       <EdgeLabelRenderer>
-        {/* Branch label */}
         {branchPath && (
           <div
             style={{
               position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${midX}px,${midY - 18}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 18}px)`,
               pointerEvents: 'none',
               zIndex: 10,
             }}
@@ -192,7 +196,6 @@ export const CustomEdge = ({
             </div>
           </div>
         )}
-
       </EdgeLabelRenderer>
     </>
   );

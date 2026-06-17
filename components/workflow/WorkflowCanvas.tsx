@@ -4,19 +4,16 @@ import ReactFlow, {
   reconnectEdge,
   Background,
   Controls,
-  MiniMap,
   Connection,
   Edge,
   Node,
-  Panel,
   BackgroundVariant
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { CustomNode } from './CustomNode';
 import { CustomEdge } from './CustomEdge';
 import { NodeConfigSidebar } from './NodeConfigSidebar';
-import { Button } from './Button';
-import { ArrowLeft, Save, Plus, Play, ChevronUp, Zap, CheckCircle2, Loader2, Circle } from 'lucide-react';
+import { ArrowLeft, Play, ChevronUp, Loader2, CheckCircle2, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Workflow } from '@/schema/workflow';
 import { useWorkflowEditorStore } from '@/store/workflow-editor';
@@ -84,6 +81,8 @@ export const WorkflowCanvas = ({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track per-edge reset timers so stale ones can be cancelled before a second run
+  const edgeResetTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLogsExpanded, setIsLogsExpanded] = useState(false);
   const [showLogsBar, setShowLogsBar] = useState(false);
@@ -97,13 +96,14 @@ export const WorkflowCanvas = ({
 
     unsubs.push(
       sseManager.addListener<WorkflowStartEvent>('workflow:start', (e) => {
-        console.log("workflow:start");
         if (e.workflowId !== workflowId) return;
+        // Cancel all pending edge-reset timers from the previous run
+        edgeResetTimers.current.forEach(t => clearTimeout(t));
+        edgeResetTimers.current.clear();
         setShowLogsBar(true);
         setIsLogsExpanded(true);
         setLogs([]);
         addLog(`Execution started (id: ${e.executionId})`, 'info');
-        // Reset edge run states
         const s = useWorkflowEditorStore.getState();
         s.setEdges(eds => eds.map(ed => ({ ...ed, data: { ...ed.data, runState: 'idle' } })));
       })
@@ -116,6 +116,16 @@ export const WorkflowCanvas = ({
         const node = s.nodes.find(n => n.id === e.nodeId);
         s.updateNodeData(e.nodeId, { ...node?.data, runState: 'running' });
         addLog(`Running: ${node?.data?.label ?? e.nodeId} [${e.nodeType}]`, 'info');
+        // Set outgoing edges to 'running' so the dotted flowing animation plays
+        const outgoing = s.edges.filter(edge => edge.source === e.nodeId);
+        outgoing.forEach(edge => {
+          // Cancel any pending idle-reset for this edge
+          const existing = edgeResetTimers.current.get(edge.id);
+          if (existing) { clearTimeout(existing); edgeResetTimers.current.delete(edge.id); }
+          s.setEdges(eds => eds.map(ed =>
+            ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'running' } } : ed
+          ));
+        });
       })
     );
 
@@ -124,23 +134,23 @@ export const WorkflowCanvas = ({
         if (e.workflowId !== workflowId) return;
         const s = useWorkflowEditorStore.getState();
         const node = s.nodes.find(n => n.id === e.nodeId);
-
-        // Mark node as success
         s.updateNodeData(e.nodeId, { ...node?.data, runState: 'success' });
         addLog(`Completed: ${node?.data?.label ?? e.nodeId}`, 'success');
 
-        // Animate outgoing edges — for Decision, only the taken branch
         const result = e.result as any;
         const takenBranch: string | null = result?.branch ?? null;
-
         const outgoingEdges = s.edges.filter(edge => edge.source === e.nodeId);
+
         outgoingEdges.forEach(edge => {
-          // For decision nodes, only light up the taken branch
           const edgeBranch = edge.sourceHandle === 'true' || edge.sourceHandle === 'false'
             ? edge.sourceHandle
             : (edge.data?.branchPath ?? null);
           const shouldAnimate = takenBranch === null || edgeBranch === takenBranch || edgeBranch === null;
           if (!shouldAnimate) return;
+
+          // Cancel any stale reset timer for this edge
+          const existingTimer = edgeResetTimers.current.get(edge.id);
+          if (existingTimer) clearTimeout(existingTimer);
 
           s.setEdges(eds => eds.map(ed =>
             ed.id === edge.id
@@ -148,14 +158,16 @@ export const WorkflowCanvas = ({
               : ed
           ));
 
-          // Reset edge back to idle after animation completes
-          setTimeout(() => {
-            s.setEdges(eds => eds.map(ed =>
+          // Schedule reset and track it so it can be cancelled
+          const t = setTimeout(() => {
+            edgeResetTimers.current.delete(edge.id);
+            useWorkflowEditorStore.getState().setEdges(eds => eds.map(ed =>
               ed.id === edge.id
                 ? { ...ed, data: { ...ed.data, runState: 'idle' } }
                 : ed
             ));
-          }, 1200);
+          }, 900);
+          edgeResetTimers.current.set(edge.id, t);
         });
       })
     );
@@ -180,7 +192,6 @@ export const WorkflowCanvas = ({
 
     unsubs.push(
       sseManager.addListener<WorkflowFailedEvent>('workflow:failed', (e) => {
-        console.log("workflow:failed");
         if (e.workflowId !== workflowId) return;
         setIsTesting(false);
         addLog(`Workflow failed: ${e.error}`, 'error');
@@ -208,13 +219,10 @@ export const WorkflowCanvas = ({
           return;
         }
       }
-
-      // For Decision nodes: inject branchPath from the sourceHandle id ('true'/'false')
       const isDecisionSource = sourceNode?.data?.type === 'Decision';
       const branchPath = isDecisionSource && (params.sourceHandle === 'true' || params.sourceHandle === 'false')
         ? params.sourceHandle
         : null;
-
       storeOnConnect({ ...params, data: branchPath ? { branchPath } : undefined } as any);
     },
     [nodes, edges, storeOnConnect, addLog],
@@ -223,8 +231,6 @@ export const WorkflowCanvas = ({
   const onEdgeUpdate = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
       const store = useWorkflowEditorStore.getState();
-      // Re-derive branchPath from the NEW sourceHandle so switching
-      // a Decision edge from 'false' handle to 'true' handle is reflected immediately
       const newBranchPath =
         newConnection.sourceHandle === 'true' || newConnection.sourceHandle === 'false'
           ? newConnection.sourceHandle
@@ -253,7 +259,6 @@ export const WorkflowCanvas = ({
     updateNodeData(id, data);
   }, [updateNodeData]);
 
-
   const addNode = useCallback((nodeType: string) => {
     const currentNodes = useWorkflowEditorStore.getState().nodes;
     const lastNode = currentNodes[currentNodes.length - 1];
@@ -271,11 +276,9 @@ export const WorkflowCanvas = ({
         Prompt: '',
       },
     };
-
     storeAddNode(newNode);
   }, [storeAddNode]);
 
-  // Add a node inline, connected to a source node
   const handleAddNodeInline = useCallback((sourceNodeId: string, nodeType: string) => {
     const store = useWorkflowEditorStore.getState();
     const sourceNode = store.nodes.find(n => n.id === sourceNodeId);
@@ -296,11 +299,8 @@ export const WorkflowCanvas = ({
         Prompt: '',
       },
     };
-
     storeAddNode(newNode);
 
-
-    const isDecisionSource = sourceNode.data?.type === 'Decision';
     store.setEdges((eds: Edge[]) => [
       ...eds,
       {
@@ -308,24 +308,18 @@ export const WorkflowCanvas = ({
         source: sourceNodeId,
         target: newNodeId,
         type: 'custom',
-        animated: true,
-        ...(isDecisionSource ? {} : {}),
       },
     ]);
   }, [storeAddNode]);
 
   const handleRun = useCallback(async () => {
     if (isTesting) return;
-
-    // Trigger check before run
     const store = useWorkflowEditorStore.getState();
     const hasTrigger = store.nodes.some(n => n.data?.type === 'Trigger');
     if (!hasTrigger) {
       toast.error('Add a Trigger node before running.');
       return;
     }
-
-    // Save before run (flush pending debounce)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     await saveToServer();
 
@@ -334,7 +328,6 @@ export const WorkflowCanvas = ({
     setLogs([]);
     addLog('Queueing workflow execution...', 'info');
 
-    // Reset all node/edge run states
     const freshStore = useWorkflowEditorStore.getState();
     freshStore.nodes.forEach(n => freshStore.updateNodeData(n.id, { ...n.data, runState: 'idle' }));
     freshStore.setEdges((eds: Edge[]) => eds.map(e => ({ ...e, data: { ...e.data, runState: 'idle' } })));
@@ -350,7 +343,7 @@ export const WorkflowCanvas = ({
 
   const saveToServer = useCallback(async (): Promise<boolean> => {
     const store = useWorkflowEditorStore.getState();
-    if (!store.isDirty) return true; // nothing to save
+    if (!store.isDirty) return true;
 
     const { nodes: n, edges: e } = store;
     setIsSaving(true);
@@ -364,7 +357,6 @@ export const WorkflowCanvas = ({
               return { id, type: type ?? nodeData?.type ?? 'Action', data: nodeData, position };
             }),
             edges: e.map(({ id, source, target, sourceHandle, targetHandle, data }) => {
-
               const branchPath: 'true' | 'false' | undefined =
                 data?.branchPath ??
                 (sourceHandle === 'true' || sourceHandle === 'false' ? sourceHandle : undefined);
@@ -374,7 +366,6 @@ export const WorkflowCanvas = ({
                 target,
                 sourceHandle: sourceHandle ?? undefined,
                 targetHandle: targetHandle ?? undefined,
-
                 data: branchPath ? { branchPath } : undefined,
               };
             }),
@@ -400,12 +391,10 @@ export const WorkflowCanvas = ({
     };
   }, [nodes, edges, isDirty, saveToServer]);
 
-
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (useWorkflowEditorStore.getState().isDirty) {
-
         saveToServer();
       }
     };
@@ -414,7 +403,6 @@ export const WorkflowCanvas = ({
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (useWorkflowEditorStore.getState().isDirty) {
-
         e.preventDefault();
       }
     };
@@ -422,19 +410,18 @@ export const WorkflowCanvas = ({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const handlePublish = useCallback(async () => {
     if (isSaving) return;
     const currentNodes = useWorkflowEditorStore.getState().nodes;
     const hasTrigger = currentNodes.some(n => n.data?.type === 'Trigger');
     if (!hasTrigger) {
-      toast.error('Add a Trigger node before saving your workflow.');
+      toast.error('Add a Trigger node before publishing.');
       return;
     }
     const ok = await saveToServer();
-    if (ok) toast.success('Workflow saved!');
-    else toast.error('Failed to save workflow.');
+    if (ok) toast.success('Workflow published!');
+    else toast.error('Failed to publish workflow.');
   }, [isSaving, saveToServer]);
-
 
   const reactFlowNodes = useMemo(() => nodes.map(n => ({
     ...n,
@@ -442,115 +429,115 @@ export const WorkflowCanvas = ({
   })), [nodes, handleAddNodeInline]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col font-sans">
-      {/* Header */}
-      <header className="h-20 border-b border-border bg-card flex items-center justify-between px-8 z-10">
-        <div className="flex items-center gap-6">
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#1c1c1c' }}>
+
+      {/* Top Navigation — 56px */}
+      <header
+        className="h-14 flex items-center justify-between px-5 flex-shrink-0 z-10"
+        style={{ background: '#111113', borderBottom: '1px solid #26262B' }}
+      >
+        {/* Left */}
+        <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-3 border border-border hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground rounded-none"
+            className="flex items-center gap-2 text-[#52525B] hover:text-[#A1A1AA] transition-colors duration-150"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="h-8 w-px bg-border mx-2" />
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-mono-data mb-1">Project / Workflow</div>
-            <input
-              type="text"
-              value={editableName}
-              onChange={(e) => {
-                setEditableName(e.target.value);
-                setWorkflowName(e.target.value);
-              }}
-              className="text-xl font-bold text-foreground tracking-tight bg-transparent border-none outline-none w-full hover:text-primary focus:text-primary transition-colors cursor-text min-w-[120px] max-w-[300px]"
-              style={{ width: `${Math.max(editableName.length, 8)}ch` }}
-              placeholder="Untitled Workflow"
-              aria-label="Workflow name"
-            />
-          </div>
 
-          {/* Save status pill */}
-          <div className="flex items-center gap-1.5 ml-4 min-w-[130px]">
+          <div style={{ width: '1px', height: '16px', background: '#26262B' }} />
+
+          <input
+            type="text"
+            value={editableName}
+            onChange={(e) => {
+              setEditableName(e.target.value);
+              setWorkflowName(e.target.value);
+            }}
+            className="text-[13px] font-medium text-[#FAFAFA] bg-transparent border-none outline-none hover:text-white focus:text-white transition-colors cursor-text"
+            style={{ width: `${Math.max(editableName.length, 8)}ch`, minWidth: '80px', maxWidth: '280px' }}
+            placeholder="Untitled Workflow"
+            aria-label="Workflow name"
+          />
+
+          {/* Save status */}
+          <div className="flex items-center">
             {isSaving ? (
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono-data">
+              <span className="flex items-center gap-1.5 text-[11px] text-[#A1A1AA] font-mono">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                Saving…
+                Saving
               </span>
             ) : lastSaved && !isDirty ? (
-              <span className="flex items-center gap-1.5 text-[11px] text-emerald-500 font-mono-data">
+              <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono">
                 <CheckCircle2 className="w-3 h-3" />
-                Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Saved
               </span>
             ) : isDirty ? (
-              <span className="flex items-center gap-1.5 text-[11px] text-amber-500 font-mono-data">
-                <Circle className="w-2.5 h-2.5 fill-amber-500" />
-                Unsaved changes
+              <span className="flex items-center gap-1.5 text-[11px] text-amber-400 font-mono">
+                <Circle className="w-2 h-2 fill-amber-400" />
+                Unsaved
               </span>
             ) : null}
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <NodePickerPopover onSelect={addNode} side="bottom" align="center">
-            <Button variant="outline" size="md" className="border-border hover:border-primary/50">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Step
-            </Button>
+        {/* Right */}
+        <div className="flex items-center gap-2">
+          {/* Add Agent */}
+          <NodePickerPopover onSelect={addNode} side="bottom" align="end">
+            <button
+              className="h-8 px-3 text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-colors duration-150"
+              style={{ borderRadius: 0 }}
+            >
+              Add agent
+            </button>
           </NodePickerPopover>
-          <Button
-            variant="outline"
-            size="md"
-            className="border-border hover:border-primary/50"
+
+          {/* Run */}
+          <button
             onClick={handleRun}
             disabled={isTesting}
+            className="h-8 px-3 flex items-center gap-1.5 text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-colors duration-150 disabled:opacity-40"
+            style={{ borderRadius: 0 }}
           >
-            <Play className="w-4 h-4 mr-2" />
-            {isTesting ? 'Runing...' : 'Run'}
-          </Button>
-          <Button
-            size="md"
-            className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
-            onClick={handleSave}
+            <Play className="w-3 h-3" />
+            {isTesting ? 'Running...' : 'Run'}
+          </button>
+
+          {/* Publish — primary pink */}
+          <button
+            onClick={handlePublish}
             disabled={isSaving}
+            className="h-9 px-4 text-[12px] font-semibold transition-opacity duration-150 disabled:opacity-50"
+            style={{ background: '#F49ACB', color: '#09090B', borderRadius: 0 }}
           >
-            {isSaving ? (
-              <>
-                <span className="w-4 h-4 mr-2 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Save Workflow
-              </>
-            )}
-          </Button>
+            {isSaving ? 'Saving...' : 'Publish'}
+          </button>
         </div>
       </header>
 
       {/* Canvas */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Decorative Grid Lines */}
-        <div className="absolute inset-0 pointer-events-none opacity-20 z-0">
-          <div className="absolute top-0 left-1/4 w-px h-full bg-border" />
-          <div className="absolute top-0 right-1/4 w-px h-full bg-border" />
-          <div className="absolute top-1/4 left-0 w-full h-px bg-border" />
-          <div className="absolute bottom-1/4 left-0 w-full h-px bg-border" />
-        </div>
 
         {/* Empty State */}
         {nodes.length === 0 && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
-            <div className="bg-card/80 backdrop-blur-sm border border-border p-8 rounded-2xl shadow-premium flex flex-col items-center max-w-md text-center pointer-events-auto">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-                <Zap className="w-8 h-8 text-primary" />
+            <div className="flex flex-col items-center text-center pointer-events-auto">
+              <h2 className="text-[15px] font-medium text-[#FAFAFA] mb-2 tracking-tight">
+                Create your first workflow
+              </h2>
+              <p className="text-[13px] text-[#52525B] mb-6 max-w-[320px] leading-relaxed">
+                Connect agents together to automate decisions and actions.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => addNode('Trigger')}
+                  className="h-8 px-4 text-[12px] font-medium text-[#09090B] transition-opacity hover:opacity-80"
+                  style={{ background: '#F49ACB', borderRadius: 0 }}
+                >
+                  Create agent
+                </button>
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2 tracking-tight">Build Your Workflow</h3>
-              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">Every automation begins with a trigger. What event should start this workflow?</p>
-              <Button size="lg" onClick={() => addNode('Trigger')} className="w-full shadow-md font-semibold tracking-wide">
-                <Plus className="w-5 h-5 mr-2" />
-                Start with Trigger Node
-              </Button>
             </div>
           </div>
         )}
@@ -570,91 +557,87 @@ export const WorkflowCanvas = ({
           fitView
           fitViewOptions={{ padding: 1.5, minZoom: 0.1 }}
           minZoom={0.1}
-          className="bg-background dark:bg-[#1f1f1f]"
+          style={{ background: '#1c1c1c' }}
+          defaultEdgeOptions={{ type: 'custom' }}
         >
-          <Background color="rgba(150,150,150,0.3)" gap={20} size={1.5} variant={BackgroundVariant.Dots} />
-          <Controls className="!bg-card !border-border !fill-foreground !rounded-none !shadow-premium" />
-          <MiniMap
-            className="!bg-card !border-border !rounded-none"
-            nodeColor="oklch(0.75 0.18 330)"
-            maskColor="rgba(0, 0, 0, 0.7)"
+          <Background
+            color="#2e2e2e"
+            gap={24}
+            size={6}
+            variant={BackgroundVariant.Cross}
           />
-
-          <Panel position="bottom-right" className="bg-card border border-border p-6 shadow-premium m-8 rounded-none min-w-[200px]">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4 font-mono-data">System Status</div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-end">
-                <div className="text-[10px] text-muted-foreground uppercase font-mono-data">Nodes</div>
-                <div className="text-2xl font-bold text-foreground leading-none">{nodes.length}</div>
-              </div>
-              <div className="flex justify-between items-end">
-                <div className="text-[10px] text-muted-foreground uppercase font-mono-data">Edges</div>
-                <div className="text-2xl font-bold text-foreground leading-none">{edges.length}</div>
-              </div>
-              <div className="pt-4 border-t border-border">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  <span className="text-[10px] text-primary uppercase font-mono-data tracking-wider">Live Sync Active</span>
-                </div>
-              </div>
-            </div>
-          </Panel>
+          <Controls
+            style={{
+              background: '#111113',
+              border: '1px solid #26262B',
+              borderRadius: 0,
+              boxShadow: 'none',
+            }}
+          />
         </ReactFlow>
 
-        {/* Logs panel */}
+        {/* Logs drawer — only visible after Run */}
         <AnimatePresence>
           {showLogsBar && (
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
-              className="absolute bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none"
+              exit={{ y: '100%' }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="absolute bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden"
+              style={{
+                background: '#111113',
+                borderTop: '1px solid #26262B',
+                height: isLogsExpanded ? 280 : 40,
+                transition: 'height 0.2s ease',
+              }}
             >
-              <motion.div
-                className="bg-card border-t border-l border-r border-border rounded-t-lg shadow-[0_-10px_40px_rgba(0,0,0,0.5)] pointer-events-auto flex flex-col overflow-hidden"
-                animate={{ height: isLogsExpanded ? 300 : 40, width: isLogsExpanded ? '80%' : 250 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              <button
+                onClick={() => setIsLogsExpanded(v => !v)}
+                className="h-10 px-5 flex items-center justify-between shrink-0 w-full hover:bg-white/[0.02] transition-colors duration-150"
               >
-                <button
-                  onClick={() => setIsLogsExpanded(v => !v)}
-                  className={`h-10 px-4 flex items-center justify-between bg-black/40 hover:bg-black/60 transition-colors cursor-pointer w-full shrink-0 ${isLogsExpanded ? 'border-b border-border' : ''}`}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono-data">
-                    Workflow Logs {logs.length > 0 && `(${logs.length})`}
-                  </span>
-                  <motion.div animate={{ rotate: isLogsExpanded ? 180 : 0 }}>
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                  </motion.div>
-                </button>
-                <AnimatePresence>
-                  {isLogsExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex-1 overflow-y-auto p-4 space-y-2 bg-background/95 font-mono-data text-xs"
-                    >
-                      {logs.map(log => (
-                        <div key={log.id} className="flex gap-4">
-                          <span className="text-muted-foreground opacity-50 shrink-0">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#A1A1AA]">
+                  Logs {logs.length > 0 && `(${logs.length})`}
+                </span>
+                <ChevronUp
+                  className="w-3.5 h-3.5 text-[#A1A1AA] transition-transform duration-150"
+                  style={{ transform: isLogsExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                />
+              </button>
+
+              <AnimatePresence>
+                {isLogsExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex-1 overflow-y-auto px-5 py-3 space-y-1.5 font-mono text-[11px]"
+                  >
+                    {logs.map(log => {
+                      const msgColor =
+                        log.type === 'error' ? 'text-red-300' :
+                          log.type === 'success' ? 'text-emerald-300' :
+                            'text-[#C4C4C8]';
+                      return (
+                        <div key={log.id} className="flex items-start gap-3">
+                          <span className="text-[#71717A] shrink-0 tabular-nums pt-px select-none">
                             {log.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </span>
-                          <span className={
-                            log.type === 'error' ? 'text-red-400' :
-                              log.type === 'success' ? 'text-emerald-400' :
-                                'text-foreground'
-                          }>
+                          <span className={`${msgColor} leading-relaxed`}>
                             {log.message}
                           </span>
                         </div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
 
+        {/* Inspector sidebar */}
         <AnimatePresence>
           {selectedNode && (
             <NodeConfigSidebar
