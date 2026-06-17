@@ -268,7 +268,7 @@ export const WorkflowCanvas = ({
         label: `New ${nodeType}`,
         type: nodeType,
         description: 'Configure this step',
-        prompt: '',
+        Prompt: '',
       },
     };
 
@@ -293,7 +293,7 @@ export const WorkflowCanvas = ({
         label: `New ${nodeType}`,
         type: nodeType,
         description: 'Configure this step',
-        prompt: '',
+        Prompt: '',
       },
     };
 
@@ -359,7 +359,10 @@ export const WorkflowCanvas = ({
         name: store.workflowName || undefined,
         workflow: {
           graph: {
-            nodes: n.map(({ id, type, data, position }) => ({ id, type: type ?? data?.type ?? 'Action', data, position })),
+            nodes: n.map(({ id, type, data, position }) => {
+              const { prompt: _prompt, ...nodeData } = data ?? {};
+              return { id, type: type ?? nodeData?.type ?? 'Action', data: nodeData, position };
+            }),
             edges: e.map(({ id, source, target, sourceHandle, targetHandle, data }) => {
 
               const branchPath: 'true' | 'false' | undefined =
