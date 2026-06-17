@@ -75,4 +75,25 @@ export interface ExecutionContext {
   errors: Record<string, string>;
 }
 
+export class NodeError extends Error {
+  readonly nodeId: string;
+  readonly nodeType: string;
+  readonly cause?: unknown;
 
+  constructor(message: string, nodeId: string, nodeType: string, cause?: unknown) {
+    super(message);
+    this.name = "NodeError";
+    this.nodeId = nodeId;
+    this.nodeType = nodeType;
+    this.cause = cause;
+  }
+}
+
+export function toNodeError(error: unknown, nodeId: string, nodeType: string): NodeError {
+  if (error instanceof NodeError) {
+    return error;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return new NodeError(message, nodeId, nodeType, error);
+}

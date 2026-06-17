@@ -1,14 +1,11 @@
 import { emitter } from "./event-emitter";
 import { Workflow, Node } from "@/schema/workflow";
 import { runWeatherAgent, runSummarizer } from "./agents";
-import { AgentNodeOutput, ConditionNodeOutput, WorkflowExecutorEvent, ExecutionContext } from "./type";
+import { AgentNodeOutput, ConditionNodeOutput, WorkflowExecutorEvent, ExecutionContext, NodeError, toNodeError } from "./type";
 import { ExecutionService } from "@/lib/services";
 import { createExecutionContext } from "./execution-context";
 import { retry } from "./retry";
-import { measureExecutionTime, measureExecutionTimeSync } from "./profiler";
-
-
-
+import { measureExecutionTimeSync } from "./profiler";
 export class WorkflowExecutor {
   private workflowId: string;
   private userId: string;
@@ -90,108 +87,118 @@ export class WorkflowExecutor {
   }
 
   public async executeWorkflow() {
+    try {
+      const execution =
+        await ExecutionService.createWorkflowExecution({ workflowId: this.workflowId });
 
-    const execution =
-      await ExecutionService.createWorkflowExecution({ workflowId: this.workflowId });
+      const context = createExecutionContext(
+        execution.id,
+      );
 
-    const context = createExecutionContext(
-      execution.id,
-    );
+      let queue: Node[] = [];
+      if (!this.startNode) {
+        throw new Error("Workflow is invalid no starting node found");
+      }
 
-    let queue: Node[] = [];
-    if (!this.startNode) {
+      await this.emit({
+        type: "workflow:start",
+        executionId: this.executionId,
+        workflowId: this.workflowId,
+        userId: this.userId,
+        timestamp: Date.now(),
+      });
+      queue.push(this.startNode);
+
+      while (queue.length > 0) {
+        const currentBatch = queue;
+        queue = [];
+
+        const results = await Promise.all(
+          currentBatch.map(async (node) => {
+
+            try {
+              context.outputs[node.id] = await retry(() => this.processNode(node, context), 3, 1000);
+            } catch (error: unknown) {
+              const nodeError = toNodeError(error, node.id, node.type);
+              console.log("Error processing node", nodeError);
+              context.errors[node.id] = nodeError.message;
+
+              await this.emit({
+                type: "node:error",
+                executionId: this.executionId,
+                workflowId: this.workflowId,
+                userId: this.userId,
+                nodeId: node.id,
+                nodeType: node.type,
+                error: nodeError.message,
+                timestamp: Date.now(),
+              });
+
+              await this.emit({
+                type: "workflow:failed",
+                executionId: this.executionId,
+                workflowId: this.workflowId,
+                userId: this.userId,
+                timestamp: Date.now(),
+                error: nodeError.message
+              });
+
+            }
+            return { node, output: context.outputs[node.id] };
+          })
+        );
+
+
+
+        for (const { node, output } of results) {
+          const children = this.graph.get(node) ?? [];
+
+          if (node.type === "Decision") {
+            console.log("Decision Node", node);
+            console.log("Decision Node Output", output);
+            const branch = (output as ConditionNodeOutput).branch;
+            console.log("branch", branch);
+            console.log("children", children);
+            const nextChild = children.find((c) => c.branchPath === branch);
+
+            if (nextChild) {
+              //nextChild.node.data = { ...(nextChild.node.data ?? {}), previousInput: output };
+              queue.push(nextChild.node);
+            }
+          } else {
+            for (const { node: child } of children) {
+              //child.data = { ...(child.data ?? {}), previousInput: output };
+              queue.push(child);
+            }
+          }
+        }
+      }
+
+      await emitter.emit({
+        type: "workflow:complete",
+        executionId: this.executionId,
+        workflowId: this.workflowId,
+        userId: this.userId,
+        timestamp: Date.now(),
+      });
+    } catch (error: unknown) {
+      if (error instanceof NodeError) {
+        throw error;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+
       await this.emit({
         type: "workflow:failed",
         executionId: this.executionId,
         workflowId: this.workflowId,
         userId: this.userId,
         timestamp: Date.now(),
-        error: "Workflow is invalid no starting node found"
+        error: message,
       });
-      throw new Error("Workflow is invalid no starting node found");
+
+      throw error;
     }
-
-    await this.emit({
-      type: "workflow:start",
-      executionId: this.executionId,
-      workflowId: this.workflowId,
-      userId: this.userId,
-      timestamp: Date.now(),
-    });
-    queue.push(this.startNode);
-
-    while (queue.length > 0) {
-      const currentBatch = queue;
-      queue = [];
-
-      const results = await Promise.all(
-        currentBatch.map(async (node) => {
-
-          try {
-            context.outputs[node.id] = await retry(() => this.processNode(node, context), 3, 1000);
-          } catch (error: any) {
-            console.log("Error processing node", error);
-            context.errors[node.id] = error?.message;
-
-
-            await this.emit({
-              type: "node:error",
-              executionId: this.executionId,
-              workflowId: this.workflowId,
-              userId: this.userId,
-              nodeId: node.id,
-              nodeType: node.type,
-              error: error.message,
-              timestamp: Date.now(),
-            });
-
-            await this.emit({
-              type: "workflow:failed",
-              executionId: this.executionId,
-              workflowId: this.workflowId,
-              userId: this.userId,
-              timestamp: Date.now(),
-              error: error.message
-            });
-
-          }
-          return { node, output: context.outputs[node.id] };
-        })
-      );
-
-
-
-      for (const { node, output } of results) {
-        const children = this.graph.get(node) ?? [];
-
-        if (node.type === "Decision") {
-          console.log("Decision Node", node);
-          console.log("Decision Node Output", output);
-          const branch = (output as ConditionNodeOutput).branch;
-          console.log("branch", branch);
-          console.log("children", children);
-          const nextChild = children.find((c) => c.branchPath === branch);
-
-          if (nextChild) {
-            //nextChild.node.data = { ...(nextChild.node.data ?? {}), previousInput: output };
-            queue.push(nextChild.node);
-          }
-        } else {
-          for (const { node: child } of children) {
-            //child.data = { ...(child.data ?? {}), previousInput: output };
-            queue.push(child);
-          }
-        }
-      }
-    }
-
-    await emitter.emit({
-      type: "workflow:complete",
-      executionId: this.executionId,
-      workflowId: this.workflowId,
-      userId: this.userId,
-      timestamp: Date.now(),
-    });
   }
 
   async processNode(node: Node, context: ExecutionContext) {
@@ -253,7 +260,7 @@ export class WorkflowExecutor {
                   : "false";
                 break;
               default:
-                throw new Error(`Unknown operator ${operator}`);
+                throw new NodeError(`Unknown operator ${operator}`, nodeId, nodeType);
             }
           }
 
@@ -261,11 +268,7 @@ export class WorkflowExecutor {
           break;
 
         default:
-          result = {
-            text: "",
-            data: {}
-          }
-          throw new Error("Unsupported node type: " + node.type);
+          throw new NodeError(`Unsupported node type: ${node.type}`, nodeId, nodeType);
       }
 
       await this.emit({
@@ -281,7 +284,9 @@ export class WorkflowExecutor {
 
       return result;
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const nodeError = toNodeError(err, nodeId, nodeType);
+
       await this.emit({
         type: "node:error",
         executionId: this.executionId,
@@ -289,20 +294,11 @@ export class WorkflowExecutor {
         userId: this.userId,
         nodeId,
         nodeType,
-        error: err.message,
+        error: nodeError.message,
         timestamp: Date.now(),
       });
 
-      await this.emit({
-        type: "workflow:failed",
-        executionId: this.executionId,
-        workflowId: this.workflowId,
-        userId: this.userId,
-        error: err.message,
-        timestamp: Date.now(),
-      });
-
-      throw err;
+      throw nodeError;
     }
   }
 
