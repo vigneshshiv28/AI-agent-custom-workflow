@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from 'reactflow';
+import { EdgeLabelRenderer, EdgeProps, getBezierPath } from 'reactflow';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface CustomEdgeData {
@@ -8,7 +8,6 @@ interface CustomEdgeData {
 }
 
 export const CustomEdge = ({
-  id,
   sourceX,
   sourceY,
   sourcePosition,
@@ -16,18 +15,12 @@ export const CustomEdge = ({
   targetX,
   targetY,
   targetPosition,
-  style = {},
-  markerEnd,
   data,
   selected,
 }: EdgeProps<CustomEdgeData>) => {
   const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
+    sourceX, sourceY, sourcePosition,
+    targetX, targetY, targetPosition,
   });
 
   const uid = useId();
@@ -35,157 +28,170 @@ export const CustomEdge = ({
 
   const runState: 'idle' | 'running' | 'success' | 'error' = data?.runState || 'idle';
 
-  // Branch identity from sourceHandleId
   const branchPath: 'true' | 'false' | null =
-    sourceHandleId === 'true' || sourceHandleId === 'false'
-      ? sourceHandleId
-      : null;
+    sourceHandleId === 'true' || sourceHandleId === 'false' ? sourceHandleId : null;
 
-  // Color per branch — hex only, oklch is unreliable in SVG stroke attributes
   const branchColor =
-    branchPath === 'true'
-      ? '#22c55e'
-      : branchPath === 'false'
-        ? '#f97316'
-        : '#d17bb5';
+    branchPath === 'true'  ? '#22c55e' :
+    branchPath === 'false' ? '#f97316' :
+    '#d17bb5';
 
-  const activeColor =
-    runState === 'error' ? '#ef4444' : branchColor;
+  const activeColor = runState === 'error' ? '#ef4444' : branchColor;
 
-  const baseOpacity =
-    selected
-      ? 0.8
-      : runState === 'idle'
-        ? 0.22
-        : runState === 'error'
-          ? 0.8
-          : 0.4;
+  const isRunning = runState === 'running';
+  const isSuccess = runState === 'success';
+  const isError   = runState === 'error';
 
   return (
     <>
-      {/* Path def for animateMotion */}
       <defs>
         <path id={pathId} d={edgePath} />
       </defs>
 
-      {/* Static base track */}
-      <BaseEdge
-        path={edgePath}
-        markerEnd={markerEnd}
-        interactionWidth={20}
-        style={{
-          ...style,
-          stroke: activeColor,
-          strokeWidth: 3.5,
-          opacity: baseOpacity,
-          cursor: 'grab',
-          transition: 'opacity 0.4s, stroke 0.3s',
-        }}
-      />
+      {/* ── Wide transparent hit-area for mouse interaction ── */}
+      <path d={edgePath} fill="none" stroke="transparent" strokeWidth={20} style={{ cursor: 'grab' }} />
 
-      {/* Running: animated marching dashes */}
+      {/* ── IDLE / SELECTED: slowly flowing dashes ── */}
+      {!isRunning && !isSuccess && !isError && (
+        <motion.path
+          d={edgePath}
+          fill="none"
+          stroke={activeColor}
+          strokeWidth={2}
+          strokeDasharray="5 8"
+          strokeLinecap="round"
+          animate={{ strokeDashoffset: [0, -13] }}
+          transition={{ duration: selected ? 0.8 : 1.8, repeat: Infinity, ease: 'linear' }}
+          style={{
+            pointerEvents: 'none',
+            opacity: selected ? 0.7 : 0.35,
+          }}
+        />
+      )}
+
+      {/* ── ERROR: static red dashes ── */}
+      {isError && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="#ef4444"
+          strokeWidth={2}
+          strokeDasharray="5 8"
+          strokeLinecap="round"
+          opacity={0.8}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+
+      {/* ── RUNNING: solid filled line + soft glow ── */}
       <AnimatePresence>
-        {runState === 'running' && (
-          <motion.path
-            key="running-dashes"
-            d={edgePath}
-            fill="none"
-            stroke={activeColor}
-            strokeWidth={3}
-            strokeDasharray="6 10"
-            strokeLinecap="round"
-            initial={{ strokeDashoffset: 0, opacity: 0 }}
-            animate={{ strokeDashoffset: -16, opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.2 } }}
-            transition={{
-              strokeDashoffset: { duration: 0.4, repeat: Infinity, ease: 'linear' },
-              opacity: { duration: 0.15 },
-            }}
-            style={{ pointerEvents: 'none' }}
-          />
+        {isRunning && (
+          <>
+            {/* Soft glow behind — blur only, not neon */}
+            <motion.path
+              key="running-glow"
+              d={edgePath}
+              fill="none"
+              stroke={activeColor}
+              strokeWidth={8}
+              strokeLinecap="round"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.15 }}
+              exit={{ opacity: 0, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.2 }}
+              style={{ pointerEvents: 'none', filter: 'blur(4px)' }}
+            />
+            {/* Solid filled line */}
+            <motion.path
+              key="running-solid"
+              d={edgePath}
+              fill="none"
+              stroke={activeColor}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              transition={{
+                pathLength: { duration: 0.4, ease: [0.4, 0, 0.2, 1] },
+                opacity: { duration: 0.15 },
+              }}
+              style={{ pointerEvents: 'none' }}
+            />
+          </>
         )}
       </AnimatePresence>
 
-      {/* Success: path sweep from source to target */}
+      {/* ── SUCCESS: solid sweep then traveling dot ── */}
       <AnimatePresence>
-        {runState === 'success' && (
-          <motion.path
-            key="success-sweep"
-            d={edgePath}
-            fill="none"
-            stroke={activeColor}
-            strokeWidth={5}
-            strokeLinecap="round"
-            pathLength="1"
-            initial={{ pathLength: 0, opacity: 1 }}
-            animate={{ pathLength: 1, opacity: [1, 1, 0.3] }}
-            exit={{ opacity: 0, transition: { duration: 0.3 } }}
-            transition={{
-              pathLength: { duration: 0.55, ease: [0.4, 0, 0.2, 1] },
-              opacity: { duration: 1.0, times: [0, 0.5, 1] },
-            }}
-            style={{
-              pointerEvents: 'none',
-              filter: `drop-shadow(0 0 4px ${activeColor})`,
-            }}
-          />
+        {isSuccess && (
+          <>
+            <motion.path
+              key="success-sweep"
+              d={edgePath}
+              fill="none"
+              stroke={activeColor}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              pathLength="1"
+              initial={{ pathLength: 0, opacity: 1 }}
+              animate={{ pathLength: 1, opacity: [1, 1, 0.4] }}
+              exit={{ opacity: 0, transition: { duration: 0.3 } }}
+              transition={{
+                pathLength: { duration: 0.45, ease: [0.4, 0, 0.2, 1] },
+                opacity: { duration: 0.85, times: [0, 0.5, 1] },
+              }}
+              style={{ pointerEvents: 'none' }}
+            />
+            <motion.g
+              key="success-particle"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 1, 1, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6, times: [0, 0.1, 0.75, 1], ease: 'easeOut' }}
+              style={{ pointerEvents: 'none' }}
+            >
+              <circle r={5} fill={activeColor} opacity={0.2}>
+                <animateMotion dur="0.5s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
+                  <mpath href={`#${pathId}`} />
+                </animateMotion>
+              </circle>
+              <circle r={3} fill={activeColor}>
+                <animateMotion dur="0.5s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
+                  <mpath href={`#${pathId}`} />
+                </animateMotion>
+              </circle>
+              <circle r={1.5} fill="white" opacity={0.85}>
+                <animateMotion dur="0.5s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
+                  <mpath href={`#${pathId}`} />
+                </animateMotion>
+              </circle>
+            </motion.g>
+          </>
         )}
       </AnimatePresence>
 
-      {/* Success: glowing dot traveling along the path */}
-      <AnimatePresence>
-        {runState === 'success' && (
-          <motion.g
-            key="success-particle"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 1, 1, 0] }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.7, times: [0, 0.1, 0.8, 1], ease: 'easeOut' }}
-            style={{ pointerEvents: 'none' }}
-          >
-            <circle r={7} fill={activeColor} opacity={0.3}>
-              <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
-                <mpath href={`#${pathId}`} />
-              </animateMotion>
-            </circle>
-            <circle r={4} fill={activeColor}>
-              <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
-                <mpath href={`#${pathId}`} />
-              </animateMotion>
-            </circle>
-            <circle r={2} fill="white" opacity={0.9}>
-              <animateMotion dur="0.6s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
-                <mpath href={`#${pathId}`} />
-              </animateMotion>
-            </circle>
-          </motion.g>
-        )}
-      </AnimatePresence>
-
-      {/* Branch label — rendered outside SVG via EdgeLabelRenderer */}
+      {/* ── Branch label ── */}
       <EdgeLabelRenderer>
         {branchPath && (
           <div
             style={{
               position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 18}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 16}px)`,
               pointerEvents: 'none',
               zIndex: 10,
             }}
           >
             <div
               style={{
-                background: branchPath === 'true'
-                  ? 'rgba(34,197,94,0.12)'
-                  : 'rgba(249,115,22,0.12)',
-                border: `1px solid ${branchPath === 'true' ? 'rgba(34,197,94,0.5)' : 'rgba(249,115,22,0.5)'}`,
+                background: branchPath === 'true' ? 'rgba(34,197,94,0.12)' : 'rgba(249,115,22,0.12)',
+                border: `1px solid ${branchPath === 'true' ? 'rgba(34,197,94,0.45)' : 'rgba(249,115,22,0.45)'}`,
                 color: branchPath === 'true' ? '#22c55e' : '#f97316',
-                borderRadius: '4px',
-                padding: '2px 8px',
+                padding: '2px 7px',
                 fontSize: '9px',
                 fontFamily: 'var(--font-mono, monospace)',
                 fontWeight: 700,
-                letterSpacing: '0.14em',
+                letterSpacing: '0.12em',
                 textTransform: 'uppercase',
                 backdropFilter: 'blur(4px)',
                 userSelect: 'none',

@@ -1,16 +1,22 @@
-import React from 'react';
-import { X, Clock, Calendar, RotateCcw, ChevronDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Clock, Calendar, RotateCcw, ChevronDown, CalendarDays } from 'lucide-react';
 import { Node } from 'reactflow';
 import { motion } from 'motion/react';
+import { format } from 'date-fns';
 import { ScheduleConfig } from '@/types/components';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface NodeConfigSidebarProps {
   node: Node;
   onClose: () => void;
   onUpdate: (id: string, data: any) => void;
+  onDelete?: (id: string) => void;
 }
 
-export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onClose, onUpdate }) => {
+export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onClose, onUpdate, onDelete }) => {
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
   const handleChange = (field: string, value: string) => {
     onUpdate(node.id, { ...node.data, [field]: value });
   };
@@ -29,6 +35,36 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
   };
 
   const schedule = node.data.schedule || { mode: 'INTERVAL', value: 1, unit: 'HOURS' };
+
+  // Parse stored dateTime (ISO or datetime-local format) into a Date object
+  const selectedDate: Date | undefined = (() => {
+    if (schedule.mode !== 'CALENDAR' || !schedule.dateTime) return undefined;
+    const d = new Date(schedule.dateTime);
+    return isNaN(d.getTime()) ? undefined : d;
+  })();
+
+  // Extract time part from stored dateTime
+  const selectedTime: string = (() => {
+    if (!schedule.dateTime) return '00:00';
+    const d = new Date(schedule.dateTime);
+    if (isNaN(d.getTime())) return '00:00';
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  })();
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) return;
+    const [h, m] = selectedTime.split(':').map(Number);
+    date.setHours(h || 0, m || 0, 0, 0);
+    handleScheduleChange({ dateTime: date.toISOString() });
+    setCalendarOpen(false);
+  };
+
+  const handleTimeChange = (timeStr: string) => {
+    const base = selectedDate ? new Date(selectedDate) : new Date();
+    const [h, m] = timeStr.split(':').map(Number);
+    base.setHours(h || 0, m || 0, 0, 0);
+    handleScheduleChange({ dateTime: base.toISOString() });
+  };
 
   const inputClass = `
     w-full bg-[#09090B] border border-[#26262B]
@@ -51,12 +87,22 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
       {/* Header */}
       <div className="h-14 px-5 flex items-center justify-between border-b border-[#26262B] flex-shrink-0">
         <span className="text-[13px] font-medium text-[#FAFAFA] tracking-tight">Configure Node</span>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center text-[#52525B] hover:text-[#A1A1AA] transition-colors duration-150"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {node.data.type !== 'Trigger' && onDelete && (
+            <button
+              onClick={() => onDelete(node.id)}
+              className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-colors duration-150 px-2 py-1 bg-red-400/10 hover:bg-red-400/20 rounded"
+            >
+              Delete
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center text-[#52525B] hover:text-[#A1A1AA] transition-colors duration-150"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Body */}
@@ -79,7 +125,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
         {node.data.type === 'Trigger' ? (
           <div>
             <label className={labelClass}>Type</label>
-            <div className="px-3 py-2 bg-[#09090B] border border-[#26262B] rounded text-[13px] text-[#3F3F46]">
+            <div className="px-3 py-2 bg-[#09090B] border border-[#26262B] text-[13px] text-[#3F3F46]">
               Trigger
             </div>
           </div>
@@ -116,11 +162,10 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                   <button
                     key={label}
                     onClick={action}
-                    className={`flex items-center gap-2 px-3 py-2 border text-[11px] font-mono tracking-wider transition-colors duration-150 ${
-                      active
-                        ? 'border-[#F49ACB] text-[#F49ACB] bg-[#F49ACB]/5'
-                        : 'border-[#26262B] text-[#52525B] hover:border-[#3F3F46] hover:text-[#A1A1AA]'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-2 border text-[11px] font-mono tracking-wider transition-colors duration-150 ${active
+                      ? 'border-[#F49ACB] text-[#F49ACB] bg-[#F49ACB]/5'
+                      : 'border-[#26262B] text-[#52525B] hover:border-[#3F3F46] hover:text-[#A1A1AA]'
+                      }`}
                   >
                     {icon}
                     {label.toUpperCase()}
@@ -168,7 +213,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                   type="time"
                   value={schedule.time || ''}
                   onChange={(e) => handleScheduleChange({ time: e.target.value })}
-                  className={inputClass}
+                  className={`${inputClass} appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none`}
                 />
               </div>
             )}
@@ -187,15 +232,55 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
               </div>
             )}
 
+            {/* Calendar date picker */}
             {schedule.mode === 'CALENDAR' && node.data.schedule && (
-              <div>
-                <label className={labelClass}>Date &amp; time</label>
-                <input
-                  type="datetime-local"
-                  value={schedule.dateTime || ''}
-                  onChange={(e) => handleScheduleChange({ dateTime: e.target.value })}
-                  className={inputClass}
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className={labelClass}>Date</label>
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={`${inputClass} w-full flex items-center justify-between`}
+                      >
+                        <span className={selectedDate ? 'text-[#FAFAFA]' : 'text-[#3F3F46]'}>
+                          {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
+                        </span>
+                        <CalendarDays className="w-3.5 h-3.5 text-[#52525B] shrink-0" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 border-[#26262B] bg-[#111113] shadow-xl"
+                      align="start"
+                      side="bottom"
+                      style={{ zIndex: 9999 }}
+                    >
+                      <CalendarPicker
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={handleDateSelect}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+
+                        className="text-[#FAFAFA] [&_.rdp-day_selected]:bg-[#F49ACB] [&_.rdp-day_selected]:text-black [&_.rdp-day:hover:not(.rdp-day_selected)]:bg-[#26262B] [&_.rdp-nav_button]:text-[#A1A1AA] [&_.rdp-nav_button:hover]:bg-[#26262B]"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Time</label>
+                  <input
+                    type="time"
+                    value={selectedTime}
+                    onChange={(e) => handleTimeChange(e.target.value)}
+                    className={`${inputClass} appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none`}
+                  />
+                </div>
+
+                {selectedDate && (
+                  <div className="px-3 py-2 bg-[#F49ACB]/5 border border-[#F49ACB]/20 text-[11px] text-[#F49ACB] font-mono">
+                    {format(selectedDate, 'EEE, MMM d yyyy')} at {selectedTime}
+                  </div>
+                )}
               </div>
             )}
           </div>

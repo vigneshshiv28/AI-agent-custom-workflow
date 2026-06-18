@@ -71,7 +71,10 @@ export const WorkflowCanvas = ({
       setWorkflow({
         id: workflowId,
         name: workflowName,
-        nodes: workflow?.graph.nodes,
+        nodes: workflow?.graph.nodes?.map(n => ({
+          ...n,
+          deletable: n.data?.type !== 'Trigger',
+        })),
         edges: workflow?.graph.edges,
       });
     }
@@ -83,6 +86,8 @@ export const WorkflowCanvas = ({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track per-edge reset timers so stale ones can be cancelled before a second run
   const edgeResetTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Track when each edge entered 'running' so we can enforce a minimum display time
+  const edgeRunningAt = useRef<Map<string, number>>(new Map());
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLogsExpanded, setIsLogsExpanded] = useState(false);
   const [showLogsBar, setShowLogsBar] = useState(false);
@@ -122,6 +127,7 @@ export const WorkflowCanvas = ({
           // Cancel any pending idle-reset for this edge
           const existing = edgeResetTimers.current.get(edge.id);
           if (existing) { clearTimeout(existing); edgeResetTimers.current.delete(edge.id); }
+          edgeRunningAt.current.set(edge.id, Date.now());
           s.setEdges(eds => eds.map(ed =>
             ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'running' } } : ed
           ));
@@ -140,6 +146,7 @@ export const WorkflowCanvas = ({
         const result = e.result as any;
         const takenBranch: string | null = result?.branch ?? null;
         const outgoingEdges = s.edges.filter(edge => edge.source === e.nodeId);
+        const MIN_RUNNING_MS = 450;
 
         outgoingEdges.forEach(edge => {
           const edgeBranch = edge.sourceHandle === 'true' || edge.sourceHandle === 'false'
@@ -152,22 +159,31 @@ export const WorkflowCanvas = ({
           const existingTimer = edgeResetTimers.current.get(edge.id);
           if (existingTimer) clearTimeout(existingTimer);
 
-          s.setEdges(eds => eds.map(ed =>
-            ed.id === edge.id
-              ? { ...ed, data: { ...ed.data, runState: 'success' } }
-              : ed
-          ));
+          // Enforce minimum running display time before transitioning to success
+          const ranAt = edgeRunningAt.current.get(edge.id) ?? 0;
+          const elapsed = Date.now() - ranAt;
+          const delay = Math.max(0, MIN_RUNNING_MS - elapsed);
 
-          // Schedule reset and track it so it can be cancelled
-          const t = setTimeout(() => {
-            edgeResetTimers.current.delete(edge.id);
+          const applySuccess = () => {
+            edgeRunningAt.current.delete(edge.id);
             useWorkflowEditorStore.getState().setEdges(eds => eds.map(ed =>
-              ed.id === edge.id
-                ? { ...ed, data: { ...ed.data, runState: 'idle' } }
-                : ed
+              ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'success' } } : ed
             ));
-          }, 900);
-          edgeResetTimers.current.set(edge.id, t);
+            const t = setTimeout(() => {
+              edgeResetTimers.current.delete(edge.id);
+              useWorkflowEditorStore.getState().setEdges(eds => eds.map(ed =>
+                ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'idle' } } : ed
+              ));
+            }, 900);
+            edgeResetTimers.current.set(edge.id, t);
+          };
+
+          if (delay > 0) {
+            const t = setTimeout(applySuccess, delay);
+            edgeResetTimers.current.set(edge.id, t);
+          } else {
+            applySuccess();
+          }
         });
       })
     );
@@ -260,7 +276,38 @@ export const WorkflowCanvas = ({
   }, [updateNodeData]);
 
   const addNode = useCallback((nodeType: string) => {
-    const currentNodes = useWorkflowEditorStore.getState().nodes;
+    const store = useWorkflowEditorStore.getState();
+    const currentNodes = store.nodes;
+    const hasTrigger = currentNodes.some(n => n.data?.type === 'Trigger');
+
+    if (!hasTrigger && nodeType !== 'Trigger') {
+      const triggerId = Math.random().toString(36).substr(2, 9);
+      const triggerNode: Node = {
+        id: triggerId,
+        type: 'Trigger',
+        position: { x: 50, y: 250 },
+        deletable: false,
+        data: { label: 'New Trigger', type: 'Trigger', description: 'Configure this step', Prompt: '' },
+      };
+      store.addNode(triggerNode);
+
+      const newNodeId = Math.random().toString(36).substr(2, 9);
+      const newNode: Node = {
+        id: newNodeId,
+        type: nodeType,
+        position: { x: 450, y: 250 },
+        deletable: true,
+        data: { label: `New ${nodeType}`, type: nodeType, description: 'Configure this step', Prompt: '' },
+      };
+      store.addNode(newNode);
+
+      store.setEdges((eds: Edge[]) => [
+        ...eds,
+        { id: `e-${triggerId}-${newNodeId}`, source: triggerId, target: newNodeId, type: 'custom' },
+      ]);
+      return;
+    }
+
     const lastNode = currentNodes[currentNodes.length - 1];
     const newX = lastNode ? lastNode.position.x + 400 : 50;
     const newY = lastNode ? lastNode.position.y : 250;
@@ -269,6 +316,7 @@ export const WorkflowCanvas = ({
       id: Math.random().toString(36).substr(2, 9),
       type: nodeType,
       position: { x: newX, y: newY },
+      deletable: nodeType !== 'Trigger',
       data: {
         label: `New ${nodeType}`,
         type: nodeType,
@@ -276,8 +324,8 @@ export const WorkflowCanvas = ({
         Prompt: '',
       },
     };
-    storeAddNode(newNode);
-  }, [storeAddNode]);
+    store.addNode(newNode);
+  }, []);
 
   const handleAddNodeInline = useCallback((sourceNodeId: string, nodeType: string) => {
     const store = useWorkflowEditorStore.getState();
@@ -292,6 +340,7 @@ export const WorkflowCanvas = ({
       id: newNodeId,
       type: nodeType,
       position: { x: newX, y: newY },
+      deletable: nodeType !== 'Trigger',
       data: {
         label: `New ${nodeType}`,
         type: nodeType,
@@ -644,6 +693,7 @@ export const WorkflowCanvas = ({
               node={selectedNode}
               onClose={() => setSelectedNode(null)}
               onUpdate={handleNodeUpdate}
+              onDelete={(id) => useWorkflowEditorStore.getState().removeNode(id)}
             />
           )}
         </AnimatePresence>

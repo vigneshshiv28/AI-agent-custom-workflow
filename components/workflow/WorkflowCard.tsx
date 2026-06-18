@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Settings, Clock } from 'lucide-react';
 import { WorkflowListResponse } from '@/shared/contracts/workflow.contract';
-import { WorkflowStatus } from '@/types/components';
-import { StatusBadge } from './StatusBadge';
-import { motion } from 'motion/react';
 
 interface WorkflowCardProps {
   workflow: WorkflowListResponse;
@@ -12,157 +8,125 @@ interface WorkflowCardProps {
   onDelete: (id: string) => void;
 }
 
-export const WorkflowCard: React.FC<WorkflowCardProps> = ({ workflow, onRun, onEdit, onDelete }) => {
-  const [runState, setRunState] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+function formatRelativeTime(dateInput: Date | string | number) {
+  if (!dateInput) return '';
+  const date = new Date(dateInput);
+  const now = new Date();
+  const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.round(minutes / 60);
+  const days = Math.round(hours / 24);
 
-  const handleRun = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (runState !== 'idle') return;
+  if (seconds < 60) return `Just now`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return `Yesterday`;
+  return `${days} days ago`;
+}
 
-    setRunState('running');
+function formatDateToTime(dateInput: Date | string | number) {
+  const date = new Date(dateInput);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const isTomorrow = new Date(now.getTime() + 86400000).toDateString() === date.toDateString();
+  
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Today ${timeStr}`;
+  if (isTomorrow) return `Tomorrow ${timeStr}`;
+  return `${date.toLocaleDateString()} ${timeStr}`;
+}
 
-    // Simulate execution
-    setTimeout(() => {
-      // 80% success, 20% error for demonstration
-      const isError = Math.random() > 0.8;
-      setRunState(isError ? 'error' : 'success');
+export const WorkflowCard: React.FC<WorkflowCardProps> = ({ workflow, onEdit }) => {
+  const [isHovered, setIsHovered] = useState(false);
 
-      setTimeout(() => {
-        setRunState('idle');
-      }, 2000);
-    }, 2500);
+  // Workflow Graph Preview Logic
+  const nodes = workflow.workflow?.graph?.nodes || [];
+  const edges = workflow.workflow?.graph?.edges || [];
+  
+  let graphPreview = 'Empty Workflow';
+  if (nodes.length > 0) {
+    const triggerNode = nodes.find((n: any) => n.type === 'Trigger' || n.data?.type === 'Trigger') || nodes[0];
+    
+    const buildPath = (nodeId: string, depth = 0): string => {
+      if (depth > 5) return '...';
+      const node = nodes.find((n: any) => n.id === nodeId);
+      if (!node) return '';
+      
+      const label = node.data?.label || node.type || 'Node';
+      const outgoingEdges = edges.filter((e: any) => e.source === nodeId);
+      
+      if (outgoingEdges.length === 0) return label;
+      if (outgoingEdges.length === 1) return `${label} → ${buildPath(outgoingEdges[0].target, depth + 1)}`;
+      
+      const branches = outgoingEdges.map((e: any) => buildPath(e.target, depth + 1)).join(', ');
+      return `${label} → [${branches}]`;
+    };
+    
+    graphPreview = buildPath(triggerNode.id);
+  }
 
-    onRun(workflow.id);
-  };
+  // Activity Indicator Logic
+  let dotColor = 'transparent';
+  let dotBorder = '#404046';
+  let activityText = 'Never Executed';
+  
+  const activeSchedule = workflow.Schedules?.find(s => s.status === 'ACTIVE');
+  const latestExecution = workflow.Executions && workflow.Executions.length > 0 ? workflow.Executions[0] : null;
 
-  const lastRunStr = workflow.Executions && workflow.Executions.length > 0
-    ? new Date(workflow.Executions[0].startedAt).toLocaleString()
-    : 'Never';
+  if (activeSchedule) {
+    dotColor = '#60A5FA'; // Default blue for scheduled
+    dotBorder = '#60A5FA';
+    const nextRunStr = activeSchedule.nextRunAt ? formatDateToTime(activeSchedule.nextRunAt) : 'Unknown';
+    activityText = `Scheduled · Next run ${nextRunStr}`;
+  } else if (latestExecution) {
+    const timeStr = formatRelativeTime(latestExecution.startedAt);
+    if (latestExecution.status === 'RUNNING') {
+      dotColor = '#4ADE80';
+      dotBorder = '#4ADE80';
+      activityText = `Running since ${timeStr}`;
+    } else if (latestExecution.status === 'FAILED') {
+      dotColor = '#F87171';
+      dotBorder = '#F87171';
+      activityText = `Failed ${timeStr}`;
+    } else if (latestExecution.status === 'SUCCESS') {
+      dotColor = '#60A5FA';
+      dotBorder = '#60A5FA';
+      activityText = `Executed ${timeStr}`;
+    }
+  }
 
   return (
-    <motion.div
-      className="group relative bg-card rounded-lg shadow-premium hover:shadow-premium-hover transition-all duration-300 flex flex-col h-full hover:scale-[1.01] overflow-hidden"
-      animate={
-        runState === 'error' ? { x: [-2, 2, -2, 2, 0], transition: { duration: 0.3 } } :
-          runState === 'success' ? { scale: [1, 1.02, 1], transition: { duration: 0.3 } } :
-            {}
-      }
+    <div
+      onClick={() => onEdit(workflow.id)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group flex flex-col cursor-pointer transition-colors duration-150 relative border"
+      style={{
+        padding: '20px',
+        borderRadius: '0px',
+        backgroundColor: '#161618',
+        borderColor: isHovered ? '#404046' : '#26262B'
+      }}
     >
-
-      <div className="absolute inset-0 bg-matte-gradient opacity-100 pointer-events-none" />
-      <div className="absolute inset-0 shadow-inner-glow rounded-lg pointer-events-none" />
-
-      <div className="absolute inset-0 rounded-lg border border-white/10 pointer-events-none group-hover:border-white/20 transition-colors" />
-
-
-      <motion.div
-        className="absolute inset-0 rounded-lg pointer-events-none overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{
-          opacity: runState === 'running' ? 1 : 0,
-          boxShadow: runState === 'running' ? 'inset 0 0 20px rgba(255,255,255,0.05), 0 0 15px rgba(255,255,255,0.1)' : 'none'
-        }}
-        transition={{ duration: 0.3 }}
-      >
-
-        <div
-          className="absolute inset-0 blur-[4px] rounded-lg"
-          style={{
-            padding: '2px',
-            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-          }}
-        >
-          <motion.div
-            className="absolute w-[300%] h-[300%] top-[-100%] left-[-100%]"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            style={{
-              background: 'conic-gradient(from 90deg at 50% 50%, transparent 75%, var(--color-primary) 95%, var(--color-primary) 100%)',
-            }}
-          />
-        </div>
-
-        <div
-          className="absolute inset-0 rounded-lg"
-          style={{
-            padding: '1px',
-            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-          }}
-        >
-          <motion.div
-            className="absolute w-[300%] h-[300%] top-[-100%] left-[-100%]"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            style={{
-              background: 'conic-gradient(from 90deg at 50% 50%, transparent 75%, var(--color-primary) 95%, #ffffff 100%)',
-            }}
-          />
-        </div>
-      </motion.div>
-
-      <motion.div
-        className="absolute inset-0 rounded-lg border border-emerald-500/50 pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: runState === 'success' ? 1 : 0 }}
-        transition={{ duration: 0.2 }}
-      />
-
-      <motion.div
-        className="absolute inset-0 rounded-lg border border-red-500/50 pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: runState === 'error' ? [0, 1, 0, 1, 0] : 0 }}
-        transition={{ duration: 0.4 }}
-      />
-
-      <div className="relative z-10 flex flex-col h-full p-8"> {/* Increased padding */}
-        <div className="flex justify-between items-start mb-8">
-          <StatusBadge
-            status={
-              workflow.Schedules?.[0]?.status === 'ACTIVE'
-                ? WorkflowStatus.Active
-                : workflow.Schedules?.[0]?.status === 'PAUSED'
-                  ? WorkflowStatus.Paused
-                  : WorkflowStatus.Error
-            }
-            runState={runState}
-          />
-          <button
-            onClick={() => onEdit(workflow.id)}
-            className="text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 p-1 hover:bg-white/5 rounded"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-2 mb-8 text-sm text-muted-foreground">
-          <div className="flex gap-4">
-            <span><strong>{workflow._count?.Executions || 0}</strong> Executions</span>
-            <span><strong>{workflow._count?.Schedules || 0}</strong> Schedules</span>
-          </div>
-        </div>
-
-        <div className="pt-6 border-t border-white/5 flex justify-between items-center mt-auto">
-          <div className="flex items-center text-xs font-medium text-muted-foreground/70">
-            <Clock className="w-3.5 h-3.5 mr-2" />
-            Last run: {lastRunStr}
-          </div>
-
-          <button
-            onClick={handleRun}
-            disabled={runState !== 'idle'}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-all flex items-center tracking-wide uppercase ${runState !== 'idle'
-              ? 'text-muted-foreground bg-white/5 cursor-not-allowed'
-              : 'text-primary hover:text-primary-foreground hover:bg-primary/10'
-              }`}>
-            {runState === 'running' ? 'Running...' : 'Run'}
-            <Play className="w-3 h-3 ml-2 fill-current" />
-          </button>
-        </div>
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="text-[15px] font-semibold text-[#FAFAFA] tracking-tight">
+          {workflow.name}
+        </h3>
       </div>
-    </motion.div>
+      
+      <div className="mb-6 font-mono text-[13px] text-[#A1A1AA] leading-relaxed line-clamp-3">
+        {graphPreview}
+      </div>
+
+      <div className="mt-auto flex items-center gap-2">
+        <div 
+          className="w-2 h-2 rounded-full border shrink-0" 
+          style={{ backgroundColor: dotColor, borderColor: dotBorder }}
+        />
+        <span className="text-[13px] text-[#A1A1AA] truncate">
+          {activityText}
+        </span>
+      </div>
+    </div>
   );
 };

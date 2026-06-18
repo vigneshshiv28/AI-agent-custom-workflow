@@ -101,7 +101,11 @@ export const useWorkflowEditorStore =
           ...n,
           type: (n.type === 'custom' || !n.type) ? (n.data?.type ?? 'Action') : n.type,
         })),
-        edges: workflow.edges || [],
+        edges: (workflow.edges || []).map((e) => ({
+          ...e,
+          type: 'custom',
+          data: e.data ?? {},
+        })),
         isDirty: false,
       }),
 

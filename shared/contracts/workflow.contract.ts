@@ -27,7 +27,7 @@ export interface WorkflowResponse {
 }
 
 // expand this later with specific responses for lists vs details
-export type WorkflowListResponse = Omit<WorkflowResponse, 'workflow'> & {
+export type WorkflowListResponse = WorkflowResponse & {
   _count?: {
     Executions: number;
     Schedules: number;

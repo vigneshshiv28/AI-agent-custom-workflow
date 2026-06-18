@@ -1,53 +1,31 @@
 "use client"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import {
-  Search,
-  Bell,
-  LayoutGrid,
-  Plus,
-  Sparkles,
-  Clock,
-  Activity,
-  CheckCircle,
-  AlertTriangle
-} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/workflow/Button';
 import { WorkflowCard } from '@/components/workflow/WorkflowCard';
 import { EmptyState } from '@/components/workflow/EmptyState';
-import { CreateWorkflowModal } from '@/components/workflow/CreateWorkflowModal';
 import { Sidebar } from '@/components/workflow/Sidebar';
-import { WorkflowListResponse, DashboardMetricsResponse } from "@/shared/contracts/workflow.contract";
+import { WorkflowListResponse } from "@/shared/contracts/workflow.contract";
 import { toast } from "sonner"
-import { Metric } from '@/types/components';
-import { MetricsStrip } from "./MetricsStrip";
 import { createWorkflow } from "@/lib/api/workflow";
 import ApiError from "@/lib/errors/api-errors";
-import { getDashboardMetrics, getDashboardSummary } from "@/lib/api/dashboard";
-
-
+import { getDashboardSummary } from "@/lib/api/dashboard";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { authClient } from "@/lib/auth/auth-client";
 
 type DashBoardClientProps = {
   initialWorkflows: WorkflowListResponse[];
-  initialMetrics: DashboardMetricsResponse;
 }
 
-export const DashboardClient = ({ initialWorkflows, initialMetrics }: DashBoardClientProps) => {
-
+export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const router = useRouter();
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
-
-  const { data: metrics = initialMetrics } = useQuery<DashboardMetricsResponse>({
-    queryKey: ['dashboard', 'metrics'],
-    queryFn: getDashboardMetrics,
-    initialData: initialMetrics,
-    refetchOnWindowFocus: false,
-  });
+  const { data: session } = authClient.useSession();
 
   const { data: workflows = initialWorkflows } = useQuery<WorkflowListResponse[]>({
     queryKey: ['dashboard', 'summary'],
@@ -56,21 +34,22 @@ export const DashboardClient = ({ initialWorkflows, initialMetrics }: DashBoardC
     refetchOnWindowFocus: false,
   });
 
-  const MOCK_METRICS: Metric[] = [
-    { label: 'Runs Today', value: metrics.recentExecutionsCount.toString(), status: 'neutral', icon: <Activity /> },
-    { label: 'Success Rate', value: `${metrics.successRate}%`, status: 'positive', icon: <CheckCircle /> },
-    { label: 'Active Workflows', value: metrics.totalWorkflows.toString(), status: 'neutral', icon: <LayoutGrid /> },
-    { label: 'Needs Attention', value: metrics.failedExecutionsCount.toString(), status: 'warning', icon: <AlertTriangle /> },
-  ];
-
   const filteredWorkflows = workflows.filter(w =>
     w.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const scheduled = filteredWorkflows.filter(w => w.Schedules?.some(s => s.status === 'ACTIVE'));
+  const recent = filteredWorkflows.filter(w => w.Executions && w.Executions.length > 0 && !w.Schedules?.some(s => s.status === 'ACTIVE'));
 
-
-  const handleWorkflowDelete = () => console.log("delete");
-  const handleAction = (id: string) => console.log('Action on:', id);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleCreateNewWorkflow = async () => {
     if (isCreating) return;
@@ -84,186 +63,135 @@ export const DashboardClient = ({ initialWorkflows, initialMetrics }: DashBoardC
     }
   };
 
-  const handleOpenCanvas = (workflow: WorkflowListResponse) => {
-    router.push(`/workflow/${workflow.id}`);
+  const handleOpenCanvas = (id: string) => {
+    router.push(`/workflow/${id}`);
   };
 
-  const renderRecentExecutions = () => {
-    return (
-      <div className="bg-card border border-border rounded-xl p-6 shadow-sm sticky top-28 h-[calc(100vh-8rem)] overflow-y-auto">
-        <h3 className="text-lg font-semibold mb-6 flex items-center justify-between tracking-tight text-foreground">
-          Recent Executions
-        </h3>
-        <div className="space-y-4">
-          {metrics.recentExecutionsFeed.map(exec => (
-            <div key={exec.id} className="flex justify-between items-start pt-4 border-t border-border/50 first:border-0 first:pt-0">
-              <div>
-                <div className="font-medium text-sm text-foreground overflow-hidden text-ellipsis whitespace-nowrap max-w-[150px] sm:max-w-xs">{exec.workflow.name}</div>
-                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 opacity-80">
-                  <Clock className="w-3 h-3" />
-                  {(() => { const d = new Date(exec.startedAt); return `${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${d.toLocaleDateString()}`; })()}
-                </div>
-              </div>
-              <div className={`text-[10px] px-2 py-1 rounded-md font-semibold border uppercase tracking-wider ${exec.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                exec.status === 'FAILED' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                  'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                }`}>
-                {exec.status}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const handleLogout = async () => {
+    await authClient.signOut();
+    router.push("/auth/login");
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans antialiased selection:bg-primary/20">
-
-      <nav className="sticky top-0 z-30 bg-card border-b border-border shadow-md">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between h-20 items-center">
-
-            <div className="flex items-center gap-4">
-              <button
-                className="lg:hidden p-2 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              >
-                <LayoutGrid className="h-5 w-5" />
-              </button>
-              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-bold border border-primary/20">
-                AI
-              </div>
-              <span className="text-lg font-bold tracking-tight text-foreground">Workflow Studio</span>
-            </div>
-
-            <div className="hidden md:flex flex-1 items-center justify-center px-12">
-              <div className="max-w-md w-full relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <input
-                  type="text"
-                  className="block w-full pl-11 pr-4 py-2 bg-secondary border border-transparent rounded-full leading-5 placeholder-muted-foreground focus:outline-none focus:bg-background focus:border-primary/50 focus:ring-1 focus:ring-primary/50 text-sm transition-all"
-                  placeholder="Search workflows..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-
-
-            <div className="flex items-center gap-5">
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <LayoutGrid className="h-5 w-5" />
-              </button>
-              <button className="text-muted-foreground hover:text-foreground transition-colors relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
-              </button>
-
-              <div className="h-6 w-px bg-border mx-1"></div>
-
-              <Button onClick={() => setIsModalOpen(true)} className="hidden sm:flex shadow-none" variant="outline">
-                <Sparkles className="h-4 w-4 mr-2" />
-                AI Generate
-              </Button>
-
-              <Button
-                onClick={handleCreateNewWorkflow}
-                className="hidden sm:flex shadow-none"
-                disabled={isCreating}
-              >
-                {isCreating ? (
-                  <>
-                    <span className="w-4 h-4 mr-2 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Workflow
-                  </>
-                )}
-              </Button>
-
-              <div className="ml-2 cursor-pointer">
-                <img
-                  className="h-9 w-9 rounded-full border border-border hover:border-primary transition-colors"
-                  src="https://picsum.photos/100/100"
-                  alt="User"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="flex max-w-[90rem] mx-auto relative">
-
-        <div className={`
-          fixed lg:sticky top-20 z-40 h-[calc(100vh-5rem)] transition-transform duration-300 w-64
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          bg-background lg:bg-transparent
-        `}>
-          <Sidebar />
-        </div>
-
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm"
-            onClick={() => setIsSidebarOpen(false)}
+    <div className="h-screen bg-[#09090B] text-[#FAFAFA] font-sans antialiased flex flex-col selection:bg-[#F49ACB]/30 overflow-hidden">
+      
+      {/* Header - Height 56px */}
+      <header className="h-[56px] bg-[#111113] border-b border-[#26262B] flex items-center justify-between px-[32px] shrink-0 z-30">
+        <div className="flex flex-1 items-center gap-4">
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="text-[#A1A1AA] hover:text-[#FAFAFA] transition-colors"
+          >
+            {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+          </button>
+          <input
+            type="text"
+            className="w-[320px] bg-[#161618] border border-[#26262B] text-[13px] font-mono text-[#FAFAFA] placeholder:text-[#71717A] px-4 py-2 rounded-[6px] focus:outline-none focus:border-[#F49ACB] transition-colors"
+            placeholder="SEARCH WORKFLOWS..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-        )}
-
-
-        <main className="flex-1 px-6 lg:px-12 py-12 min-w-0">
-
-          <div className="mb-12">
-            <h1 className="text-4xl font-bold text-foreground tracking-tight">Your Workflows</h1>
-            <p className="mt-3 text-lg text-muted-foreground">Manage and track your active automations.</p>
-          </div>
-
-          <MetricsStrip metrics={MOCK_METRICS} />
-
-          <div className="flex flex-col lg:flex-row gap-12">
-
-            <div className="flex-1 min-w-0">
-
-              <div className="mb-6 flex justify-between items-end border-b border-border pb-4">
-                <h2 className="text-2xl font-semibold text-foreground tracking-tight">All Workflows</h2>
-                <span className="text-sm font-medium text-muted-foreground">{filteredWorkflows.length} active</span>
-              </div>
-
-              {filteredWorkflows.length > 0 ? (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {filteredWorkflows.map((workflow) => (
-                    <WorkflowCard
-                      key={workflow.id}
-                      workflow={workflow}
-                      onRun={handleAction}
-                      onEdit={() => handleOpenCanvas(workflow)}
-                      onDelete={handleWorkflowDelete}
-                    />
-                  ))}
-                </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <button
+            onClick={handleCreateNewWorkflow}
+            disabled={isCreating}
+            className="h-[36px] px-4 bg-[#F49ACB] text-[#09090B] text-[13px] font-mono uppercase tracking-wide font-semibold rounded-[6px] hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {isCreating ? 'Creating...' : 'Create Workflow'}
+          </button>
+          
+          <div className="relative" ref={profileMenuRef}>
+            <button 
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className={`w-8 h-8 rounded-full bg-[#161618] border overflow-hidden cursor-pointer focus:outline-none transition-colors ${isProfileMenuOpen ? 'border-[#F49ACB]' : 'border-[#26262B] hover:border-[#404046]'}`}
+            >
+              {session?.user?.image ? (
+                <img className="w-full h-full object-cover" src={session.user.image} alt={session.user.name || "Profile"} />
               ) : (
-                <EmptyState onCreate={() => setIsModalOpen(true)} />
+                <div className="w-full h-full flex items-center justify-center bg-[#161618] text-[#FAFAFA] text-xs font-medium">
+                  {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                </div>
               )}
-            </div>
-            <div className="w-full lg:w-80 shrink-0">
-              {renderRecentExecutions()}
-            </div>
+            </button>
 
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-[#161618] border border-[#26262B] py-1 z-50">
+                <div className="px-4 py-2 border-b border-[#26262B] mb-1">
+                  <p className="text-[13px] font-medium text-[#FAFAFA] truncate">{session?.user?.name || "User"}</p>
+                  <p className="text-[11px] text-[#A1A1AA] truncate">{session?.user?.email || ""}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-[13px] font-mono uppercase tracking-wide text-[#F87171] hover:bg-[#1C1C1F] transition-colors"
+                >
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Layout */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* Collapsible Sidebar */}
+        <div 
+          className={`shrink-0 h-full overflow-hidden transition-[width] duration-300 ease-in-out ${isSidebarOpen ? 'w-[220px]' : 'w-0'}`}
+        >
+          <div className="w-[220px] h-full">
+            <Sidebar />
+          </div>
+        </div>
+
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-[1440px] w-full mx-auto px-[32px] py-[32px] flex flex-col gap-[32px]">
+            
+            {filteredWorkflows.length === 0 ? (
+              <EmptyState onCreate={handleCreateNewWorkflow} />
+            ) : (
+              <div className="flex flex-col gap-[32px]">
+                
+                {/* Recent Section */}
+                {recent.length > 0 && (
+                  <section className="flex flex-col gap-[24px]">
+                    <h2 className="text-[18px] font-mono uppercase tracking-widest font-semibold text-[#FAFAFA]">Recent</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[16px]">
+                      {recent.map((workflow) => (
+                        <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => {}} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Scheduled Workflows Section */}
+                {scheduled.length > 0 && (
+                  <section className="flex flex-col gap-[24px]">
+                    <h2 className="text-[18px] font-mono uppercase tracking-widest font-semibold text-[#FAFAFA]">Scheduled</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[16px]">
+                      {scheduled.map((workflow) => (
+                        <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => {}} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* All Workflows Section */}
+                <section className="flex flex-col gap-[24px]">
+                  <h2 className="text-[18px] font-mono uppercase tracking-widest font-semibold text-[#FAFAFA]">All Workflows</h2>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[16px]">
+                    {filteredWorkflows.map((workflow) => (
+                      <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => {}} />
+                    ))}
+                  </div>
+                </section>
+
+              </div>
+            )}
           </div>
         </main>
       </div>
-
-      <CreateWorkflowModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={() => { }}
-      />
     </div>
   );
 };

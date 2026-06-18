@@ -14,8 +14,10 @@ function mapToWorkflowResponse(dbWorkflow: any): WorkflowResponse {
 }
 
 function mapToWorkflowListResponse(dbWorkflow: any): WorkflowListResponse {
-  const { workflow, ...rest } = dbWorkflow;
-  return rest as WorkflowListResponse;
+  return {
+    ...dbWorkflow,
+    workflow: workflowSchema.parse(dbWorkflow.workflow),
+  } as WorkflowListResponse;
 }
 
 async function createWorkflow(userId: string) {
