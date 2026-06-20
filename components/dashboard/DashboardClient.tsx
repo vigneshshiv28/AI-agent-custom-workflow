@@ -96,7 +96,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
           <button
             onClick={handleCreateNewWorkflow}
             disabled={isCreating}
-            className="h-[36px] px-4 bg-[#F49ACB] text-[#09090B] text-[13px] font-mono uppercase tracking-wide font-semibold rounded-[6px] hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="h-[36px] px-4 bg-[#F49ACB] text-[#09090B] text-[13px] font-mono uppercase tracking-wide font-semibold rounded-[6px] hover:opacity-90 transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer disabled:opacity-50"
           >
             {isCreating ? 'Creating...' : 'Create Workflow'}
           </button>

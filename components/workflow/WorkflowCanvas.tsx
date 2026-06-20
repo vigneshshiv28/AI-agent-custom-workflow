@@ -489,7 +489,7 @@ export const WorkflowCanvas = ({
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-[#52525B] hover:text-[#A1A1AA] transition-colors duration-150"
+            className="flex items-center gap-2 text-[#52525B] hover:text-[#A1A1AA] transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -535,7 +535,7 @@ export const WorkflowCanvas = ({
           {/* Add Agent */}
           <NodePickerPopover onSelect={addNode} side="bottom" align="end">
             <button
-              className="h-8 px-3 text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-colors duration-150"
+              className="h-8 px-3 text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer"
               style={{ borderRadius: 0 }}
             >
               Add agent
@@ -546,21 +546,71 @@ export const WorkflowCanvas = ({
           <button
             onClick={handleRun}
             disabled={isTesting}
-            className="h-8 px-3 flex items-center gap-1.5 text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-colors duration-150 disabled:opacity-40"
-            style={{ borderRadius: 0 }}
+            className="h-8 px-3 flex items-center justify-center text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-all duration-150 ease-ui-out active:scale-[0.97] disabled:opacity-40 cursor-pointer"
+            style={{ borderRadius: 0, minWidth: '100px' }}
           >
-            <Play className="w-3 h-3" />
-            {isTesting ? 'Running...' : 'Run'}
+            <AnimatePresence mode="wait" initial={false}>
+              {isTesting ? (
+                <motion.div
+                  key="running"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+                  className="flex items-center gap-1.5"
+                >
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Running...
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="run"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+                  className="flex items-center gap-1.5"
+                >
+                  <Play className="w-3 h-3" />
+                  Run
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
 
           {/* Publish — primary pink */}
           <button
             onClick={handlePublish}
             disabled={isSaving}
-            className="h-9 px-4 text-[12px] font-semibold transition-opacity duration-150 disabled:opacity-50"
-            style={{ background: '#F49ACB', color: '#09090B', borderRadius: 0 }}
+            className="h-8 px-3 flex items-center justify-center text-[12px] font-semibold transition-all duration-150 ease-ui-out active:scale-[0.97] disabled:opacity-50 cursor-pointer"
+            style={{ background: '#F49ACB', color: '#09090B', borderRadius: 0, minWidth: '100px' }}
           >
-            {isSaving ? 'Saving...' : 'Publish'}
+            <AnimatePresence mode="wait" initial={false}>
+              {isSaving ? (
+                <motion.div
+                  key="saving"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+                  className="flex items-center gap-1.5"
+                >
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Saving...
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="publish"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+                  className="flex items-center gap-1.5"
+                >
+                  Publish
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
         </div>
       </header>
@@ -581,7 +631,7 @@ export const WorkflowCanvas = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => addNode('Trigger')}
-                  className="h-8 px-4 text-[12px] font-medium text-[#09090B] transition-opacity hover:opacity-80"
+                  className="h-8 px-4 text-[12px] font-medium text-[#09090B] transition-all duration-150 ease-ui-out hover:opacity-80 active:scale-[0.97] cursor-pointer"
                   style={{ background: '#F49ACB', borderRadius: 0 }}
                 >
                   Create agent
@@ -632,7 +682,7 @@ export const WorkflowCanvas = ({
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
               className="absolute bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden"
               style={{
                 background: '#111113',
@@ -643,7 +693,7 @@ export const WorkflowCanvas = ({
             >
               <button
                 onClick={() => setIsLogsExpanded(v => !v)}
-                className="h-10 px-5 flex items-center justify-between shrink-0 w-full hover:bg-white/[0.02] transition-colors duration-150"
+                className="h-10 px-5 flex items-center justify-between shrink-0 w-full hover:bg-white/[0.02] transition-colors duration-150 ease-ui-out active:bg-white/[0.04] cursor-pointer"
               >
                 <span className="text-[10px] font-mono uppercase tracking-widest text-[#A1A1AA]">
                   Logs {logs.length > 0 && `(${logs.length})`}
@@ -660,7 +710,7 @@ export const WorkflowCanvas = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
                     className="flex-1 overflow-y-auto px-5 py-3 space-y-1.5 font-mono text-[11px]"
                   >
                     {logs.map(log => {

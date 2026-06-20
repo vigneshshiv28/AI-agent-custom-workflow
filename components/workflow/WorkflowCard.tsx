@@ -100,7 +100,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({ workflow, onEdit }) 
       onClick={() => onEdit(workflow.id)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group flex flex-col cursor-pointer transition-colors duration-150 relative border"
+      className="group flex flex-col cursor-pointer transition-all duration-150 ease-ui-out active:scale-[0.98] relative border"
       style={{
         padding: '20px',
         borderRadius: '0px',

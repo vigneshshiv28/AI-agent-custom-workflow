@@ -13,6 +13,8 @@
 # testing
 /coverage
 
+/skills-main
+
 # next.js
 /.next/
 /out/

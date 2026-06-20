@@ -63,6 +63,9 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
 
   return (
     <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
       className={`relative bg-black border ${borderColor} min-w-[240px] group transition-colors hover:border-primary/50 rounded-none overflow-visible`}
       style={{ boxShadow: '0 6px 24px rgba(0,0,0,0.7), 0 2px 6px rgba(0,0,0,0.5)' }}
     >
@@ -202,7 +205,7 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
       <div className="absolute right-[-26px] top-1/2 -translate-y-1/2 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
         <NodePickerPopover onSelect={handleInlineAdd} side="right" align="center">
           <button
-            className="w-5 h-5 bg-card border-2 border-border flex items-center justify-center text-muted-foreground hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all shadow-lg hover:scale-110 nodrag nopan"
+            className="w-5 h-5 bg-card border-2 border-border flex items-center justify-center text-muted-foreground hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all duration-150 ease-ui-out shadow-lg hover:scale-110 active:scale-95 nodrag nopan"
             style={{ fontSize: '12px', lineHeight: 1, fontWeight: 700, cursor: 'pointer' }}
             title="Add next node"
           >

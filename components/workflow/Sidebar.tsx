@@ -9,7 +9,7 @@ interface SidebarItemProps {
 const SidebarItem: React.FC<SidebarItemProps> = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center px-6 py-2.5 transition-colors duration-200 relative text-left ${
+    className={`w-full flex items-center px-6 py-2.5 transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer relative text-left ${
       active 
         ? 'bg-[#161618] text-[#FAFAFA]' 
         : 'text-[#A1A1AA] hover:text-[#FAFAFA] hover:bg-[#161618]'

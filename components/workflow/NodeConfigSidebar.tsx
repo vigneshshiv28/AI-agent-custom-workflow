@@ -91,14 +91,14 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
           {node.data.type !== 'Trigger' && onDelete && (
             <button
               onClick={() => onDelete(node.id)}
-              className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-colors duration-150 px-2 py-1 bg-red-400/10 hover:bg-red-400/20 rounded"
+              className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer px-2 py-1 bg-red-400/10 hover:bg-red-400/20 rounded"
             >
               Delete
             </button>
           )}
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center text-[#52525B] hover:text-[#A1A1AA] transition-colors duration-150"
+            className="w-7 h-7 flex items-center justify-center text-[#52525B] hover:text-[#A1A1AA] transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -162,7 +162,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                   <button
                     key={label}
                     onClick={action}
-                    className={`flex items-center gap-2 px-3 py-2 border text-[11px] font-mono tracking-wider transition-colors duration-150 ${active
+                    className={`flex items-center gap-2 px-3 py-2 border text-[11px] font-mono tracking-wider transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer ${active
                       ? 'border-[#F49ACB] text-[#F49ACB] bg-[#F49ACB]/5'
                       : 'border-[#26262B] text-[#52525B] hover:border-[#3F3F46] hover:text-[#A1A1AA]'
                       }`}
@@ -240,7 +240,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                   <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                     <PopoverTrigger asChild>
                       <button
-                        className={`${inputClass} w-full flex items-center justify-between`}
+                        className={`${inputClass} w-full flex items-center justify-between cursor-pointer transition-all duration-150 ease-ui-out active:scale-[0.99]`}
                       >
                         <span className={selectedDate ? 'text-[#FAFAFA]' : 'text-[#3F3F46]'}>
                           {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}

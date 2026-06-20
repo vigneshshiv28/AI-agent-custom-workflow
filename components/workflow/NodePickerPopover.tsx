@@ -35,7 +35,8 @@ export function NodePickerPopover({ onSelect, children, side = 'right', align = 
           side={side} 
           sideOffset={10} 
           align={align}
-          className="z-[100] w-64 bg-card border border-border rounded-xl shadow-2xl overflow-hidden font-sans"
+          className="z-[100] w-64 bg-card border border-border rounded-xl shadow-2xl overflow-hidden font-sans animate-popover-in"
+          style={{ transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
         >
           <Command 
             className="w-full bg-transparent p-2"
@@ -57,7 +58,7 @@ export function NodePickerPopover({ onSelect, children, side = 'right', align = 
                 <Command.Item 
                   value="action"
                   onSelect={() => handleSelect('Action')}
-                  className="flex flex-col px-2 py-2 text-sm text-foreground rounded-md cursor-pointer data-[selected=true]:bg-secondary/50 transition-colors"
+                  className="flex flex-col px-2 py-2 text-sm text-foreground rounded-md cursor-pointer data-[selected=true]:bg-secondary/50 transition-all duration-150 ease-ui-out active:scale-[0.97]"
                 >
                   <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4 text-primary" />
@@ -68,7 +69,7 @@ export function NodePickerPopover({ onSelect, children, side = 'right', align = 
                 <Command.Item 
                   value="monitor"
                   onSelect={() => handleSelect('Monitor')}
-                  className="flex flex-col px-2 py-2 text-sm text-foreground rounded-md cursor-pointer data-[selected=true]:bg-secondary/50 transition-colors mt-1"
+                  className="flex flex-col px-2 py-2 text-sm text-foreground rounded-md cursor-pointer data-[selected=true]:bg-secondary/50 transition-all duration-150 ease-ui-out active:scale-[0.97] mt-1"
                 >
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4 text-primary" />
@@ -81,7 +82,7 @@ export function NodePickerPopover({ onSelect, children, side = 'right', align = 
                 <Command.Item 
                   value="decision"
                   onSelect={() => handleSelect('Decision')}
-                  className="flex flex-col px-2 py-2 text-sm text-foreground rounded-md cursor-pointer data-[selected=true]:bg-secondary/50 transition-colors"
+                  className="flex flex-col px-2 py-2 text-sm text-foreground rounded-md cursor-pointer data-[selected=true]:bg-secondary/50 transition-all duration-150 ease-ui-out active:scale-[0.97]"
                 >
                   <div className="flex items-center gap-2">
                     <GitBranch className="w-4 h-4 text-primary" />
