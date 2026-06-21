@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/cn";
 
 const Heading = ({ children, className, as }: { children: React.ReactNode, className?: string, as: "h1" | "h2" }) => {
     const Tag = as;

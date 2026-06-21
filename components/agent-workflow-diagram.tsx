@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import { CalendarDays } from 'lucide-react'
 import { MdOutlineEmail } from "react-icons/md";
 import { FaSlack, FaWhatsapp } from "react-icons/fa";
