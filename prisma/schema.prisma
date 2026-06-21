@@ -36,11 +36,17 @@ enum NodeExecutionStatus {
   FAILED
 }
 
+enum IntegrationStatus {
+  CONNECTED
+  NOT_CONNECTED
+}
+
 model User {
   id            String     @id @default(uuid())
   name          String
   email         String     @unique
   Workflows     Workflow[]
+  integrations  Integration[]
   emailVerified Boolean    @default(false)
   image         String?
   createdAt     DateTime   @default(now())
@@ -61,6 +67,22 @@ model Workflow {
   Executions WorkflowExecution[]
 
   @@unique([userId, name])
+  @@index([userId])
+}
+
+model Integration {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  provider    String
+  credentials Json
+
+  status      IntegrationStatus
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@index([userId])
 }
 
