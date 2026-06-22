@@ -1,4 +1,6 @@
+"use client"
 import React from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface SidebarItemProps {
   label: string;
@@ -23,14 +25,35 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, active, onClick }) => 
 );
 
 export const Sidebar: React.FC = () => {
+  const pathname = usePathname();
+  const router = useRouter();
+
   return (
     <aside className="w-[220px] bg-[#111113] border-r border-[#26262B] flex flex-col h-full z-20">
       <div className="flex-1 py-6">
         <nav className="space-y-0.5">
-          <SidebarItem label="Workflows" active />
-          <SidebarItem label="Executions" />
-          <SidebarItem label="Templates" />
-          <SidebarItem label="Settings" />
+          <SidebarItem 
+            label="Workflows" 
+            active={pathname === '/dashboard'} 
+            onClick={() => router.push('/dashboard')} 
+          />
+          <SidebarItem 
+            label="Executions" 
+            active={pathname === '/dashboard/executions'}
+          />
+          <SidebarItem 
+            label="Templates" 
+            active={pathname === '/dashboard/templates'}
+          />
+          <SidebarItem 
+            label="Connections" 
+            active={pathname === '/dashboard/connections'}
+            onClick={() => router.push('/dashboard/connections')}
+          />
+          <SidebarItem 
+            label="Settings" 
+            active={pathname === '/dashboard/settings'}
+          />
         </nav>
       </div>
     </aside>

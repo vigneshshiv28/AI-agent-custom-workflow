@@ -4,7 +4,7 @@ import { IntegrationCredentials, AccountInfo } from "@/lib/integrations/types";
 export interface IntegrationProvider {
     readonly provider: string;
 
-    getAuthUrl(userId: string): Promise<string>;
+    getAuthUrl(userId: string, service?: string): Promise<string>;
 
     exchangeCode(code: string): Promise<IntegrationCredentials>;
 

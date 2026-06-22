@@ -1,16 +1,27 @@
 import { google, Auth } from "googleapis";
 import { IntegrationProvider } from "./integration-provider";
 import { IntegrationCredentials, AccountInfo } from "../types";
-import { encrypt } from "@/lib/crypto";
+import { encrypt } from "@/lib/utils/crypto";
 
 
-const SCOPES = [
+const GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.readonly",
+];
+
+const CALENDAR_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
+];
+
+const DRIVE_SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.readonly",
+];
+
+const BASE_SCOPES = [
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
-]
+];
 
 function buildClient() {
     return new google.auth.OAuth2(
@@ -26,14 +37,24 @@ export class GoogleProvider
     readonly provider = "google";
 
 
-    async getAuthUrl(userId: string): Promise<string> {
+    async getAuthUrl(userId: string, service?: string): Promise<string> {
         const client = buildClient();
 
-        const state = encrypt(JSON.stringify({ userId, ts: Date.now() }));
+        let scopes = [...BASE_SCOPES];
+        if (service === 'gmail') {
+            scopes = [...scopes, ...GMAIL_SCOPES];
+        } else if (service === 'google-calendar') {
+            scopes = [...scopes, ...CALENDAR_SCOPES];
+        } else if (service === 'google-drive') {
+            scopes = [...scopes, ...DRIVE_SCOPES];
+        }
+
+        const state = encrypt(JSON.stringify({ userId, ts: Date.now(), service }));
+        
         return client.generateAuthUrl({
             access_type: "offline",
             prompt: "consent",
-            scope: SCOPES,
+            scope: scopes,
             state,
         })
     }
