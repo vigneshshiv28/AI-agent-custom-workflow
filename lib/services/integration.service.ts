@@ -34,7 +34,15 @@ const PROVIDER_REGISTRY: Record<string, ProviderConfig> = {
     icon: 'google-drive',
     authType: 'OAuth',
   },
+  'notion': {
+    oauthProvider: 'notion',
+    name: 'Notion',
+    description: 'Read and write pages, databases, and blocks in your Notion workspace.',
+    icon: 'notion',
+    authType: 'OAuth',
+  },
 };
+
 
 async function getIntegrations(userId: string): Promise<IntegrationResponse[]> {
   const user = await UserRepository.findById(userId);
@@ -100,7 +108,6 @@ async function connectIntegration(
 async function disconnectIntegration(userId: string, provider: string): Promise<void> {
   const existing = await IntegrationRepository.findIntegrationByUserIdAndProvider(userId, provider);
   if (existing) {
-    // Optionally call provider.revoke() if needed, but deleting from our DB is the minimum requirement
     await IntegrationRepository.deleteIntegration(existing.id);
   }
 }
