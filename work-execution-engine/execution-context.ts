@@ -1,12 +1,16 @@
-import { ExecutionContext } from "./type";
+import { ExecutionContext, WorkflowExecutorEvent } from "./type";
 
 export function createExecutionContext(
     executionId: string,
+    userId: string,
+    workflowId: string,
+    emit: (event: WorkflowExecutorEvent) => Promise<void>,
 ): ExecutionContext {
     return {
         executionId,
         outputs: {},
-        variables: {},
+        variables: { userId, workflowId },
         errors: {},
+        emit,
     };
 }

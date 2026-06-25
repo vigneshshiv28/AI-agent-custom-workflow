@@ -17,7 +17,7 @@ import { ArrowLeft, Play, ChevronUp, Loader2, CheckCircle2, Circle } from 'lucid
 import { motion, AnimatePresence } from 'motion/react';
 import { Workflow } from '@/schema/workflow';
 import { useWorkflowEditorStore } from '@/store/workflow-editor';
-import { NodePickerPopover } from './NodePickerPopover';
+import { AgentLibraryPanel, AgentLibraryPopover } from './AgentLibrary';
 import { updateWorkflow, runWorkflow } from '@/lib/api/workflow';
 import { toast } from 'sonner';
 import { sseManager } from '@/lib/events/sse';
@@ -219,9 +219,13 @@ export const WorkflowCanvas = ({
 
   const nodeTypes = useMemo(() => ({
     Trigger: CustomNode,
+    Decision: CustomNode,
+    notion: CustomNode,
+    weather: CustomNode,
+    story: CustomNode,
+    research: CustomNode,
     Action: CustomNode,
     Monitor: CustomNode,
-    Decision: CustomNode,
   }), []);
   const edgeTypes = useMemo(() => ({ custom: CustomEdge }), []);
 
@@ -477,6 +481,64 @@ export const WorkflowCanvas = ({
     data: { ...n.data, onAddNodeInline: handleAddNodeInline }
   })), [nodes, handleAddNodeInline]);
 
+  const reactFlowWrapper = React.useRef<HTMLDivElement>(null);
+  const [rfInstance, setRfInstance] = React.useState<any>(null);
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const nodeType = e.dataTransfer.getData('application/agentflow-type');
+      if (!nodeType || !rfInstance || !reactFlowWrapper.current) return;
+
+      const bounds = reactFlowWrapper.current.getBoundingClientRect();
+      const position = rfInstance.screenToFlowPosition({
+        x: e.clientX - bounds.left,
+        y: e.clientY - bounds.top,
+      });
+
+      const store = useWorkflowEditorStore.getState();
+      const hasTrigger = store.nodes.some(n => n.data?.type === 'Trigger');
+
+      if (!hasTrigger && nodeType !== 'Trigger') {
+        const triggerId = Math.random().toString(36).substr(2, 9);
+        store.addNode({
+          id: triggerId,
+          type: 'Trigger',
+          position: { x: position.x - 420, y: position.y },
+          deletable: false,
+          data: { label: 'New Trigger', type: 'Trigger', description: 'Configure this step', Prompt: '' },
+        });
+        const newId = Math.random().toString(36).substr(2, 9);
+        store.addNode({
+          id: newId,
+          type: nodeType,
+          position,
+          deletable: true,
+          data: { label: `New ${nodeType}`, type: nodeType, description: 'Configure this step', Prompt: '' },
+        });
+        store.setEdges((eds: Edge[]) => [
+          ...eds,
+          { id: `e-${triggerId}-${newId}`, source: triggerId, target: newId, type: 'custom' },
+        ]);
+      } else {
+        const newId = Math.random().toString(36).substr(2, 9);
+        store.addNode({
+          id: newId,
+          type: nodeType,
+          position,
+          deletable: nodeType !== 'Trigger',
+          data: { label: `New ${nodeType}`, type: nodeType, description: 'Configure this step', Prompt: '' },
+        });
+      }
+    },
+    [rfInstance]
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#1c1c1c' }}>
 
@@ -532,16 +594,6 @@ export const WorkflowCanvas = ({
 
         {/* Right */}
         <div className="flex items-center gap-2">
-          {/* Add Agent */}
-          <NodePickerPopover onSelect={addNode} side="bottom" align="end">
-            <button
-              className="h-8 px-3 text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer"
-              style={{ borderRadius: 0 }}
-            >
-              Add agent
-            </button>
-          </NodePickerPopover>
-
           {/* Run */}
           <button
             onClick={handleRun}
@@ -615,65 +667,77 @@ export const WorkflowCanvas = ({
         </div>
       </header>
 
-      {/* Canvas */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* Canvas — Library panel + ReactFlow */}
+      <div className="flex-1 relative overflow-hidden flex">
 
-        {/* Empty State */}
-        {nodes.length === 0 && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
-            <div className="flex flex-col items-center text-center pointer-events-auto">
-              <h2 className="text-[15px] font-medium text-[#FAFAFA] mb-2 tracking-tight">
-                Create your first workflow
-              </h2>
-              <p className="text-[13px] text-[#52525B] mb-6 max-w-[320px] leading-relaxed">
-                Connect agents together to automate decisions and actions.
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => addNode('Trigger')}
-                  className="h-8 px-4 text-[12px] font-medium text-[#09090B] transition-all duration-150 ease-ui-out hover:opacity-80 active:scale-[0.97] cursor-pointer"
-                  style={{ background: '#F49ACB', borderRadius: 0 }}
-                >
-                  Create agent
-                </button>
+        {/* Library panel */}
+        <AgentLibraryPanel onSelect={addNode} />
+
+        {/* ReactFlow area */}
+        <div
+          ref={reactFlowWrapper}
+          className="flex-1 relative"
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+        >
+          {/* Empty State */}
+          {nodes.length === 0 && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center text-center pointer-events-auto">
+                <h2 className="text-[15px] font-medium text-[#FAFAFA] mb-2 tracking-tight">
+                  Create your first workflow
+                </h2>
+                <p className="text-[13px] text-[#52525B] mb-6 max-w-[320px] leading-relaxed">
+                  Connect agents together to automate decisions and actions.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => addNode('Trigger')}
+                    className="h-8 px-4 text-[12px] font-medium text-[#09090B] transition-all duration-150 ease-ui-out hover:opacity-80 active:scale-[0.97] cursor-pointer"
+                    style={{ background: '#F49ACB', borderRadius: 0 }}
+                  >
+                    Create agent
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <ReactFlow
-          nodes={reactFlowNodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onEdgeUpdate={onEdgeUpdate}
-          edgesUpdatable
-          onNodeClick={onNodeClick}
-          onPaneClick={onPaneClick}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          fitViewOptions={{ padding: 1.5, minZoom: 0.1 }}
-          minZoom={0.1}
-          style={{ background: '#1c1c1c' }}
-          defaultEdgeOptions={{ type: 'custom' }}
-        >
-          <Background
-            color="#2e2e2e"
-            gap={24}
-            size={6}
-            variant={BackgroundVariant.Cross}
-          />
-          <Controls
-            style={{
-              background: '#111113',
-              border: '1px solid #26262B',
-              borderRadius: 0,
-              boxShadow: 'none',
-            }}
-          />
-        </ReactFlow>
+          <ReactFlow
+            nodes={reactFlowNodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onEdgeUpdate={onEdgeUpdate}
+            edgesUpdatable
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            onInit={setRfInstance}
+            fitView
+            fitViewOptions={{ padding: 1.5, minZoom: 0.1 }}
+            minZoom={0.1}
+            style={{ background: '#1c1c1c' }}
+            defaultEdgeOptions={{ type: 'custom' }}
+          >
+            <Background
+              color="#2e2e2e"
+              gap={24}
+              size={6}
+              variant={BackgroundVariant.Cross}
+            />
+            <Controls
+              style={{
+                background: '#111113',
+                border: '1px solid #26262B',
+                borderRadius: 0,
+                boxShadow: 'none',
+              }}
+            />
+          </ReactFlow>
+        </div>
 
         {/* Logs drawer — only visible after Run */}
         <AnimatePresence>

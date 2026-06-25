@@ -1,11 +1,11 @@
 import { emitter } from "./event-emitter";
 import { Workflow, Node } from "@/schema/workflow";
-import { runWeatherAgent, runSummarizer } from "./agents";
 import { AgentNodeOutput, ConditionNodeOutput, WorkflowExecutorEvent, ExecutionContext, NodeError, toNodeError } from "./type";
 import { ExecutionService } from "@/lib/services";
 import { createExecutionContext } from "./execution-context";
 import { retry } from "./retry";
 import { measureExecutionTimeSync } from "./profiler";
+import { IntegrationRegistry } from "./integrations";
 export class WorkflowExecutor {
   private workflowId: string;
   private userId: string;
@@ -93,6 +93,9 @@ export class WorkflowExecutor {
 
       const context = createExecutionContext(
         execution.id,
+        this.userId,
+        this.workflowId,
+        this.emit,
       );
 
       let queue: Node[] = [];
@@ -224,52 +227,17 @@ export class WorkflowExecutor {
     try {
       let result: AgentNodeOutput | ConditionNodeOutput;
 
-      switch (node.type) {
-        case "Trigger":
-          result = { text: "", data: {} };
-          break;
-
-        case "Action":
-          result = await runWeatherAgent(node.data?.Prompt ?? "", input);
-          break;
-
-        case "Monitor":
-          result = await runSummarizer(node.data?.Prompt ?? "", input);
-          break;
-
-        case "Decision":
-          const { variable, operator, value } = node.data
-          console.log("variable:", variable);
-          console.log("operator:", operator);
-
-          console.log("value:", value);
-          const actual = input?.data?.[variable]
-
-          let branch: "true" | "false" = "false";
-          if (actual !== undefined) {
-            switch (operator) {
-              case "==": branch = actual == value ? "true" : "false"; break;
-              case "!=": branch = actual != value ? "true" : "false"; break;
-              case ">": branch = actual > value ? "true" : "false"; break;
-              case "<": branch = actual < value ? "true" : "false"; break;
-              case ">=": branch = actual >= value ? "true" : "false"; break;
-              case "<=": branch = actual <= value ? "true" : "false"; break;
-              case "contains":
-                branch = (typeof actual === "string" || Array.isArray(actual)) && actual.includes(value)
-                  ? "true"
-                  : "false";
-                break;
-              default:
-                throw new NodeError(`Unknown operator ${operator}`, nodeId, nodeType);
-            }
-          }
-
-          result = { branch, output: input };
-          break;
-
-        default:
-          throw new NodeError(`Unsupported node type: ${node.type}`, nodeId, nodeType);
+      const integration = IntegrationRegistry.get(node.type);
+      if (!integration) {
+        throw new NodeError(
+          `No integration registered for node type: "${node.type}". ` +
+          `Registered types: [${IntegrationRegistry.registeredTypes().join(", ")}]`,
+          nodeId,
+          nodeType
+        );
       }
+
+      result = await integration.execute(node, input, context);
 
       await this.emit({
         type: "node:success",

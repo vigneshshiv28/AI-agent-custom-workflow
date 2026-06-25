@@ -62,6 +62,28 @@ export type WorkflowExecutorEvent =
     workflowId: string;
     error: string;
     timestamp: number;
+  }
+  | {
+    type: "agent:tool:start";
+    executionId: string;
+    userId: string;
+    workflowId: string;
+    nodeId: string;
+    nodeType: string;
+    toolName: string;
+    toolInput: Record<string, any>;
+    timestamp: number;
+  }
+  | {
+    type: "agent:tool:result";
+    executionId: string;
+    userId: string;
+    workflowId: string;
+    nodeId: string;
+    nodeType: string;
+    toolName: string;
+    toolOutput: unknown;
+    timestamp: number;
   };
 
 
@@ -73,6 +95,8 @@ export interface ExecutionContext {
   variables: Record<string, any>;
 
   errors: Record<string, string>;
+
+  emit: (event: WorkflowExecutorEvent) => Promise<void>;
 }
 
 export class NodeError extends Error {

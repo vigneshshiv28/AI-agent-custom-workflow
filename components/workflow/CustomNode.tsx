@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { motion } from 'motion/react';
 import { Zap, Clock, GitBranch } from 'lucide-react';
-import { NodePickerPopover } from './NodePickerPopover';
+import { AgentLibraryPopover } from './AgentLibrary';
 
 const getAppLogoUrl = (label: string) => {
   if (!label) return null;
@@ -201,17 +201,16 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
         />
       )}
 
-      {/* Inline add button */}
       <div className="absolute right-[-26px] top-1/2 -translate-y-1/2 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
-        <NodePickerPopover onSelect={handleInlineAdd} side="right" align="center">
+        <AgentLibraryPopover onSelect={handleInlineAdd} side="right" align="center">
           <button
-            className="w-5 h-5 bg-card border-2 border-border flex items-center justify-center text-muted-foreground hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all duration-150 ease-ui-out shadow-lg hover:scale-110 active:scale-95 nodrag nopan"
+            className="w-5 h-5 bg-[#111113] border border-[#26262B] flex items-center justify-center text-[#71717A] hover:bg-[#1a1a1d] hover:border-[#3F3F46] hover:text-[#A1A1AA] transition-all duration-150 shadow-lg hover:scale-110 active:scale-95 nodrag nopan"
             style={{ fontSize: '12px', lineHeight: 1, fontWeight: 700, cursor: 'pointer' }}
-            title="Add next node"
+            title="Add next agent"
           >
             +
           </button>
-        </NodePickerPopover>
+        </AgentLibraryPopover>
       </div>
     </motion.div>
   );
