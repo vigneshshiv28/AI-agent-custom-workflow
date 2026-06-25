@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { WorkflowListResponse } from '@/shared/contracts/workflow.contract';
 
 interface WorkflowCardProps {
@@ -36,7 +37,7 @@ function formatDateToTime(dateInput: Date | string | number) {
   return `${date.toLocaleDateString()} ${timeStr}`;
 }
 
-export const WorkflowCard: React.FC<WorkflowCardProps> = ({ workflow, onEdit }) => {
+export const WorkflowCard: React.FC<WorkflowCardProps> = ({ workflow, onEdit, onDelete }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   // Workflow Graph Preview Logic
@@ -112,6 +113,16 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({ workflow, onEdit }) 
         <h3 className="text-[15px] font-semibold text-[#FAFAFA] tracking-tight">
           {workflow.name}
         </h3>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(workflow.id);
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1.5 text-[#A1A1AA] hover:text-[#F87171] hover:bg-[#F87171]/10 transition-all rounded"
+          title="Delete workflow"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
       
       <div className="mb-6 font-mono text-[13px] text-[#A1A1AA] leading-relaxed line-clamp-3">

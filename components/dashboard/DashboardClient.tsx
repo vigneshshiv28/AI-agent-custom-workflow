@@ -1,13 +1,14 @@
 "use client"
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { WorkflowCard } from '@/components/workflow/WorkflowCard';
+import { DeleteModal } from '@/components/workflow/DeleteModal';
 import { EmptyState } from '@/components/workflow/EmptyState';
 import { Sidebar } from '@/components/workflow/Sidebar';
 import { WorkflowListResponse } from "@/shared/contracts/workflow.contract";
 import { toast } from "sonner"
-import { createWorkflow } from "@/lib/api/workflow";
+import { createWorkflow, deleteWorkflow } from "@/lib/api/workflow";
 import ApiError from "@/lib/errors/api-errors";
 import { getDashboardSummary } from "@/lib/api/dashboard";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -22,7 +23,10 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const { data: session } = authClient.useSession();
@@ -70,6 +74,21 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
   const handleLogout = async () => {
     await authClient.signOut();
     router.push("/auth/login");
+  };
+
+  const handleDeleteWorkflow = async () => {
+    if (!workflowToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteWorkflow(workflowToDelete);
+      toast.success("Workflow deleted successfully");
+      setWorkflowToDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
+    } catch (err) {
+      toast.error("Failed to delete workflow");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -159,7 +178,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
                     <h2 className="text-[18px] font-mono uppercase tracking-widest font-semibold text-[#FAFAFA]">Recent</h2>
                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[16px]">
                       {recent.map((workflow) => (
-                        <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => {}} />
+                        <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => setWorkflowToDelete(workflow.id)} />
                       ))}
                     </div>
                   </section>
@@ -171,7 +190,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
                     <h2 className="text-[18px] font-mono uppercase tracking-widest font-semibold text-[#FAFAFA]">Scheduled</h2>
                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[16px]">
                       {scheduled.map((workflow) => (
-                        <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => {}} />
+                        <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => setWorkflowToDelete(workflow.id)} />
                       ))}
                     </div>
                   </section>
@@ -182,7 +201,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
                   <h2 className="text-[18px] font-mono uppercase tracking-widest font-semibold text-[#FAFAFA]">All Workflows</h2>
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[16px]">
                     {filteredWorkflows.map((workflow) => (
-                      <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => {}} />
+                      <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => {}} onEdit={handleOpenCanvas} onDelete={() => setWorkflowToDelete(workflow.id)} />
                     ))}
                   </div>
                 </section>
@@ -192,6 +211,13 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
           </div>
         </main>
       </div>
+
+      <DeleteModal
+        isOpen={!!workflowToDelete}
+        isDeleting={isDeleting}
+        onClose={() => setWorkflowToDelete(null)}
+        onConfirm={handleDeleteWorkflow}
+      />
     </div>
   );
 };

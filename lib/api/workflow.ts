@@ -42,3 +42,9 @@ export async function updateWorkflow(
         body: JSON.stringify(body),
     });
 }
+
+export async function deleteWorkflow(workflowId: string): Promise<{ success: boolean }> {
+    return apiFetch<{ success: boolean }>(`/api/workflow/${workflowId}`, {
+        method: "DELETE",
+    });
+}

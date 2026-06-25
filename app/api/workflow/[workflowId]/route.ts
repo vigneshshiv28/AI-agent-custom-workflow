@@ -88,3 +88,27 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ workflowId: string }> }
+) {
+  const session = await auth.api.getSession({ headers: request.headers });
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { workflowId } = await params;
+
+    await WorkflowService.deleteWorkflow(session.user.id, workflowId);
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}

@@ -137,9 +137,17 @@ async function updateWorkflow(id: string, data: UpdateWorkflowData) {
 }
 
 async function deleteWorkflow(id: string) {
-  return await prisma.workflow.delete({
-    where: { id },
-  });
+  return await prisma.$transaction([
+    prisma.workflowSchedule.deleteMany({
+      where: { workflowId: id }
+    }),
+    prisma.workflowExecution.deleteMany({
+      where: { workflowId: id }
+    }),
+    prisma.workflow.delete({
+      where: { id },
+    })
+  ]);
 }
 
 // Schedule Workflow

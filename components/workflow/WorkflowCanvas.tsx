@@ -13,12 +13,12 @@ import 'reactflow/dist/style.css';
 import { CustomNode } from './CustomNode';
 import { CustomEdge } from './CustomEdge';
 import { NodeConfigSidebar } from './NodeConfigSidebar';
-import { ArrowLeft, Play, ChevronUp, Loader2, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Play, ChevronUp, Loader2, CheckCircle2, Circle, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Workflow } from '@/schema/workflow';
 import { useWorkflowEditorStore } from '@/store/workflow-editor';
 import { AgentLibraryPanel, AgentLibraryPopover } from './AgentLibrary';
-import { updateWorkflow, runWorkflow } from '@/lib/api/workflow';
+import { updateWorkflow, runWorkflow, deleteWorkflow } from '@/lib/api/workflow';
 import { toast } from 'sonner';
 import { sseManager } from '@/lib/events/sse';
 import type { NodeStartEvent, NodeSuccessEvent, NodeErrorEvent, WorkflowStartEvent, WorkflowCompleteEvent, WorkflowFailedEvent } from '@/lib/events/sse-events';
@@ -65,6 +65,7 @@ export const WorkflowCanvas = ({
   } = useWorkflowEditorStore();
 
   const [editableName, setEditableName] = useState(workflowName || 'Untitled Workflow');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (workflow) {
@@ -434,6 +435,19 @@ export const WorkflowCanvas = ({
       setIsSaving(false);
     }
   }, [workflowId, markClean]);
+
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteWorkflow(workflowId);
+      toast.success("Workflow deleted");
+      onBack();
+    } catch (err) {
+      toast.error("Failed to delete workflow");
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!isDirty) return;

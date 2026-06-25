@@ -89,6 +89,21 @@ async function updateWorkflow(userId: string, id: string, workflow: UpdateWorkfl
   return mapToWorkflowResponse(updatedWorkflow);
 }
 
+async function deleteWorkflow(userId: string, id: string): Promise<void> {
+  const user = await UserRepository.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const existingWorkflow = await WorkflowRepository.findWorkflowById(id);
+
+  if (!existingWorkflow || userId !== existingWorkflow.userId) {
+    throw new Error('Workflow does not exist');
+  }
+
+  await WorkflowRepository.deleteWorkflow(id);
+}
+
 async function getDashboardWorkflows(userId: string) {
   const user = await UserRepository.findById(userId);
   if (!user) {
@@ -111,6 +126,7 @@ export const WorkflowService = {
   getWorkflowById,
   getWorkflowsByUserId,
   updateWorkflow,
+  deleteWorkflow,
   getDashboardWorkflows,
   getDashboardMetrics,
 };
