@@ -3,6 +3,7 @@ import React, { useState, useCallback } from "react";
 import { Zap, GitBranch, Cloud, FileText, Search } from "lucide-react";
 import NotionIcon from "@/components/icons/notion";
 import * as Popover from "@radix-ui/react-popover";
+import GmailIcon from "@/components/icons/gmail";
 
 
 export interface AgentDef {
@@ -26,6 +27,12 @@ export const AGENTS: AgentDef[] = [
     label: "Notion",
     description: "Read and write Notion pages",
     icon: <NotionIcon width={14} height={14} />,
+  },
+  {
+    type: "gmail",
+    label: "Gmail",
+    description: "Send and read emails",
+    icon: <GmailIcon width={14} height={14} />,
   },
 ];
 

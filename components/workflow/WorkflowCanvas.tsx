@@ -222,6 +222,7 @@ export const WorkflowCanvas = ({
     Trigger: CustomNode,
     Decision: CustomNode,
     notion: CustomNode,
+    gmail: CustomNode,
     weather: CustomNode,
     story: CustomNode,
     research: CustomNode,
