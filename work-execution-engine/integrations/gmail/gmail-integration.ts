@@ -4,8 +4,7 @@ import { AgentNodeOutput, ExecutionContext } from "../../type";
 import { IntegrationRepository } from "@/lib/repositories";
 import { decrypt } from "@/lib/utils/crypto";
 import { Node } from "@/schema/workflow";
-import { runGmailAgent } from "./gmail-agent";
-
+import { createGmailAgent } from "./gmail-agent";
 
 export class GmailIntegration extends ConnectedIntegration {
   readonly nodeType = "gmail";
@@ -58,32 +57,63 @@ export class GmailIntegration extends ConnectedIntegration {
     const gmail = this.getClient();
     const userPrompt: string = node.data?.Prompt ?? node.data?.prompt ?? "";
 
-    return runGmailAgent(gmail, userPrompt, input, async (toolName, phase, data) => {
-      if (phase === "start") {
-        await context.emit({
-          type: "agent:tool:start",
-          executionId: context.executionId,
-          userId: context.variables.userId,
-          workflowId: context.variables.workflowId,
-          nodeId: node.id,
-          nodeType: this.nodeType,
-          toolName,
-          toolInput: data as Record<string, any>,
-          timestamp: Date.now(),
-        });
-      } else {
-        await context.emit({
+    const agent = createGmailAgent(gmail);
+
+    const result = await agent.generate({
+      prompt: `
+===== PREVIOUS NODE OUTPUT =====
+text: ${input?.text ?? "(none)"}
+data: ${JSON.stringify(input?.data ?? {}, null, 2)}
+
+===== YOUR TASK =====
+${userPrompt}
+      `.trim(),
+
+      onToolExecutionEnd({ toolCall, toolExecutionMs, toolOutput }: any) {
+        const tag = toolOutput.type === "tool-result" ? "✓" : "✗";
+        console.log(
+          `[gmail:tool] ${tag} ${toolCall.toolName} ${toolExecutionMs}ms`,
+          { input: toolCall.input }
+        );
+        context.emit({
           type: "agent:tool:result",
+          toolName: toolCall.toolName,
+          toolOutput: toolOutput.type === "tool-result"
+            ? toolOutput.output
+            : { error: String(toolOutput.error) },
           executionId: context.executionId,
           userId: context.variables.userId,
           workflowId: context.variables.workflowId,
           nodeId: node.id,
-          nodeType: this.nodeType,
-          toolName,
-          toolOutput: data,
+          nodeType: "gmail",
           timestamp: Date.now(),
         });
-      }
+      },
+
+      onStepEnd({ stepNumber, performance, usage, toolCalls, finishReason }: any) {
+        console.log(`[gmail:step:${stepNumber}]`, {
+          llmMs: performance.stepTimeMs,
+          tokensOut: usage.outputTokens,
+          finishReason,
+          tools: toolCalls?.map((t: any) => t.toolName)
+        });
+
+        if (usage.outputTokens > 300 && !toolCalls?.length) {
+          console.warn(`[gmail] step ${stepNumber}: model generating text instead of tool call`);
+        }
+      },
+
+      onEnd({ steps, usage }: any) {
+        console.log(`[gmail:done] ${steps.length} steps | ${usage.totalTokens} tokens`);
+        if (steps.length > 4) {
+          console.warn("[gmail] high step count — review prompt");
+        }
+      },
     });
+
+    return {
+      text: result.text,
+      data: result.toolResults?.at(-1)?.output ?? {},
+    };
   }
 }
