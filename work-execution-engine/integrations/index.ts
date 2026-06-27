@@ -6,7 +6,9 @@ import { IntegrationRegistry } from "./registry";
 import { NotionIntegration } from "./notion/notion-integration";
 import { GmailIntegration } from "./gmail/gmail-integration";
 import { GoogleCalendarIntegration } from "./google-calendar/gcal-integration";
+import { GoogleDriveIntegration } from "./google-drive/gdrive-integration";
 
 IntegrationRegistry.register(new NotionIntegration());
 IntegrationRegistry.register(new GmailIntegration());
 IntegrationRegistry.register(new GoogleCalendarIntegration());
+IntegrationRegistry.register(new GoogleDriveIntegration());

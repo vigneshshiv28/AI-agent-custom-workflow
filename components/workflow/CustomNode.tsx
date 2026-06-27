@@ -100,7 +100,7 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
             <div className="w-7 h-7 flex items-center justify-center bg-black/40 shrink-0">
               {isDecision ? (
                 <GitBranch className="w-3.5 h-3.5 text-yellow-400" />
-              ) : ['gmail', 'google-calendar', 'notion'].includes(data.type) ? (
+              ) : ['gmail', 'google-calendar', 'notion', 'google-drive'].includes(data.type) ? (
                 <IntegrationIcon provider={data.type} className="w-4 h-4" />
               ) : logoUrl ? (
                 <img

@@ -224,11 +224,7 @@ export const WorkflowCanvas = ({
     notion: CustomNode,
     gmail: CustomNode,
     "google-calendar": CustomNode,
-    weather: CustomNode,
-    story: CustomNode,
-    research: CustomNode,
-    Action: CustomNode,
-    Monitor: CustomNode,
+    "google-drive": CustomNode,
   }), []);
   const edgeTypes = useMemo(() => ({ custom: CustomEdge }), []);
 

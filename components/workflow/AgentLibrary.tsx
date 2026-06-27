@@ -4,7 +4,7 @@ import { Zap, GitBranch, Cloud, FileText, Search } from "lucide-react";
 import NotionIcon from "@/components/icons/notion";
 import * as Popover from "@radix-ui/react-popover";
 import GmailIcon from "@/components/icons/gmail";
-import { GoogleCalendarIcon } from "@/components/icons/integration-icons";
+import { GoogleCalendarIcon, GoogleDriveIcon } from "@/components/icons/integration-icons";
 
 
 export interface AgentDef {
@@ -40,6 +40,12 @@ export const AGENTS: AgentDef[] = [
     label: "Google Calendar",
     description: "Manage calendar events",
     icon: <GoogleCalendarIcon className="w-3.5 h-3.5" />,
+  },
+  {
+    type: "google-drive",
+    label: "Google Drive",
+    description: "Manage files and folders",
+    icon: <GoogleDriveIcon className="w-3.5 h-3.5" />,
   },
 ];
 
