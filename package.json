@@ -21,7 +21,7 @@
     "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-query-devtools": "^5.101.0",
-    "ai": "^5.0.87",
+    "ai": "^7.0.3",
     "better-auth": "^1.4.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

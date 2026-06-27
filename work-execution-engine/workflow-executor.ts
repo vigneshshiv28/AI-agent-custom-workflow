@@ -145,7 +145,8 @@ export class WorkflowExecutor {
                 timestamp: Date.now(),
                 error: nodeError.message
               });
-
+              
+              throw nodeError;
             }
             return { node, output: context.outputs[node.id] };
           })
@@ -227,17 +228,23 @@ export class WorkflowExecutor {
     try {
       let result: AgentNodeOutput | ConditionNodeOutput;
 
-      const integration = IntegrationRegistry.get(node.type);
-      if (!integration) {
-        throw new NodeError(
-          `No integration registered for node type: "${node.type}". ` +
-          `Registered types: [${IntegrationRegistry.registeredTypes().join(", ")}]`,
-          nodeId,
-          nodeType
-        );
-      }
+      if (nodeType === "Trigger") {
+        result = { text: "Workflow triggered", data: {} };
+      } else if (nodeType === "Decision") {
+        result = { text: "Decision evaluated", branch: "true", data: {} } as ConditionNodeOutput;
+      } else {
+        const integration = IntegrationRegistry.get(node.type);
+        if (!integration) {
+          throw new NodeError(
+            `No integration registered for node type: "${node.type}". ` +
+            `Registered types: [${IntegrationRegistry.registeredTypes().join(", ")}]`,
+            nodeId,
+            nodeType
+          );
+        }
 
-      result = await integration.execute(node, input, context);
+        result = await integration.execute(node, input, context);
+      }
 
       await this.emit({
         type: "node:success",

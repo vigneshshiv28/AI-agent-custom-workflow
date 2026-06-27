@@ -7,6 +7,10 @@ import { WorkflowExecutor } from "@/work-execution-engine/workflow-executor"
 import { WorkflowExecutorEvent } from '@/work-execution-engine/type';
 import { emitter } from '@/work-execution-engine/event-emitter';
 
+import * as dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.join(process.cwd(), '../.env') });
+
 
 const STREAM_KEY = process.env.WORKFLOW_EXECUTION_STREAM || '';
 const WORKERS_COUNT = parseInt(process.env.WORKFLOW_WORKER_COUNT || '10');
