@@ -223,6 +223,7 @@ export const WorkflowCanvas = ({
     Decision: CustomNode,
     notion: CustomNode,
     gmail: CustomNode,
+    "google-calendar": CustomNode,
     weather: CustomNode,
     story: CustomNode,
     research: CustomNode,

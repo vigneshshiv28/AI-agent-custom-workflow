@@ -3,6 +3,7 @@ import { Handle, Position, NodeProps } from 'reactflow';
 import { motion } from 'motion/react';
 import { Zap, Clock, GitBranch } from 'lucide-react';
 import { AgentLibraryPopover } from './AgentLibrary';
+import { IntegrationIcon } from '@/components/icons/integration-icons';
 
 const getAppLogoUrl = (label: string) => {
   if (!label) return null;
@@ -20,6 +21,8 @@ const getAppLogoUrl = (label: string) => {
     'quickbooks': 'quickbooks.intuit.com',
     'notion': 'notion.so',
     'twitter': 'twitter.com',
+    'calendar': 'calendar.google.com',
+    'google-calendar': 'calendar.google.com',
   };
 
   for (const [app, domain] of Object.entries(domainMap)) {
@@ -97,6 +100,8 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
             <div className="w-7 h-7 flex items-center justify-center bg-black/40 shrink-0">
               {isDecision ? (
                 <GitBranch className="w-3.5 h-3.5 text-yellow-400" />
+              ) : ['gmail', 'google-calendar', 'notion'].includes(data.type) ? (
+                <IntegrationIcon provider={data.type} className="w-4 h-4" />
               ) : logoUrl ? (
                 <img
                   src={logoUrl}
