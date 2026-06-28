@@ -73,7 +73,7 @@ class SSEManager {
             } catch { }
         });
 
-        for (const eventType of ['node:start', 'node:success', 'node:error'] as const) {
+        for (const eventType of ['node:start', 'node:success', 'node:error', 'agent:tool:start', 'agent:tool:result'] as const) {
             es.addEventListener(eventType, (e: MessageEvent) => {
                 this.handleRawEvent(eventType, e.data);
             });

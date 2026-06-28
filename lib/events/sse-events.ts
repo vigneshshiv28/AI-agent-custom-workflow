@@ -33,6 +33,30 @@ export interface NodeErrorEvent {
   timestamp: number;
 }
 
+export interface AgentToolStartEvent {
+  type: 'agent:tool:start';
+  executionId: string;
+  userId: string;
+  workflowId: string;
+  nodeId: string;
+  nodeType: string;
+  toolName: string;
+  toolInput: Record<string, any>;
+  timestamp: number;
+}
+
+export interface AgentToolResultEvent {
+  type: 'agent:tool:result';
+  executionId: string;
+  userId: string;
+  workflowId: string;
+  nodeId: string;
+  nodeType: string;
+  toolName: string;
+  toolOutput: unknown;
+  timestamp: number;
+}
+
 
 
 export interface WorkflowStartEvent {
