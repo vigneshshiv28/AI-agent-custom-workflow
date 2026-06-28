@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { motion } from 'motion/react';
-import { Zap, Clock, GitBranch } from 'lucide-react';
+import { Zap, Clock, GitBranch, Loader2, AlertCircle } from 'lucide-react';
 import { AgentLibraryPopover } from './AgentLibrary';
 import { IntegrationIcon } from '@/components/icons/integration-icons';
 
@@ -56,13 +56,20 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
     }
   }
 
-  const borderColor = selected
+  const runState = data.runState || 'idle';
+  const isRunning = runState === 'running';
+  const isError = runState === 'error';
+
+  let borderColor = selected
     ? 'border-[#F49ACB]/80'
     : isTrigger
       ? 'border-primary/50'
       : isDecision
         ? 'border-yellow-500/40'
         : 'border-white/10';
+
+  if (isRunning) borderColor = 'border-[#F49ACB] shadow-[0_0_15px_rgba(244,154,203,0.3)] animate-pulse';
+  if (isError) borderColor = 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]';
 
   return (
     <motion.div
@@ -77,7 +84,17 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
       <div className="absolute -bottom-[1px] -right-[1px] w-5 h-5 border-b-[3px] border-r-[3px] border-primary z-20 pointer-events-none" />
 
       {/* Header */}
-      <div className={`px-4 py-3 border-b border-border ${isTrigger ? 'bg-primary/5' : 'bg-black/20'}`}>
+      <div className={`px-4 py-3 border-b border-border relative ${isTrigger ? 'bg-primary/5' : 'bg-black/20'}`}>
+        {isRunning && (
+          <div className="absolute top-3 right-3">
+            <Loader2 className="w-4 h-4 animate-spin text-[#F49ACB]" />
+          </div>
+        )}
+        {isError && (
+          <div className="absolute top-3 right-3">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+          </div>
+        )}
         {isTrigger ? (
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 flex items-center justify-center bg-primary/20 text-primary border border-primary/30 shrink-0">
@@ -96,7 +113,7 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 pr-6">
             <div className="w-7 h-7 flex items-center justify-center bg-black/40 shrink-0">
               {isDecision ? (
                 <GitBranch className="w-3.5 h-3.5 text-yellow-400" />

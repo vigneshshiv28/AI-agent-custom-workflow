@@ -65,7 +65,7 @@ ${userPrompt}
 
 
       onToolExecutionStart({ toolCall }: any) {
-        console.log(`[notion:tool:start] ${toolCall.toolName}`, { input: toolCall.input });
+        console.log(`[notion:tool] start ${toolCall.toolName}`, { input: toolCall.input });
         context.emit({
           type: "agent:tool:start",
           toolName: toolCall.toolName,

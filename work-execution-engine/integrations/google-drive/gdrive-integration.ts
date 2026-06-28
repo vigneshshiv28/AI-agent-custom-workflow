@@ -75,7 +75,7 @@ ${userPrompt}
       `.trim(),
 
       onToolExecutionStart({ toolCall }: any) {
-        console.log(`[gdrive:tool:start] ${toolCall.toolName}`, { input: toolCall.input });
+        console.log(`[gdrive:tool] start ${toolCall.toolName}`, { input: toolCall.input });
         context.emit({
           type: "agent:tool:start",
           toolName: toolCall.toolName,

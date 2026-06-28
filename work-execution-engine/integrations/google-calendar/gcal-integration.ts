@@ -74,7 +74,7 @@ ${userPrompt}
       `.trim(),
 
       onToolExecutionStart({ toolCall }: any) {
-        console.log(`[gcal:tool:start] ${toolCall.toolName}`, { input: toolCall.input });
+        console.log(`[gcal:tool] start ${toolCall.toolName}`, { input: toolCall.input });
         context.emit({
           type: "agent:tool:start",
           toolName: toolCall.toolName,

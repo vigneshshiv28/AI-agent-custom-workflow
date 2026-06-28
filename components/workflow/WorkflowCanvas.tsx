@@ -85,10 +85,6 @@ export const WorkflowCanvas = ({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track per-edge reset timers so stale ones can be cancelled before a second run
-  const edgeResetTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  // Track when each edge entered 'running' so we can enforce a minimum display time
-  const edgeRunningAt = useRef<Map<string, number>>(new Map());
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLogsExpanded, setIsLogsExpanded] = useState(false);
   const [showLogsBar, setShowLogsBar] = useState(false);
@@ -103,9 +99,6 @@ export const WorkflowCanvas = ({
     unsubs.push(
       sseManager.addListener<WorkflowStartEvent>('workflow:start', (e) => {
         if (e.workflowId !== workflowId) return;
-        // Cancel all pending edge-reset timers from the previous run
-        edgeResetTimers.current.forEach(t => clearTimeout(t));
-        edgeResetTimers.current.clear();
         setShowLogsBar(true);
         setIsLogsExpanded(true);
         setLogs([]);
@@ -119,20 +112,17 @@ export const WorkflowCanvas = ({
       sseManager.addListener<NodeStartEvent>('node:start', (e) => {
         if (e.workflowId !== workflowId) return;
         const s = useWorkflowEditorStore.getState();
+        
+        const incomingEdges = s.edges.filter(edge => edge.target === e.nodeId);
+        incomingEdges.forEach(edge => {
+          s.setEdges(eds => eds.map(ed =>
+            ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'success' } } : ed
+          ));
+        });
+
         const node = s.nodes.find(n => n.id === e.nodeId);
         s.updateNodeData(e.nodeId, { ...node?.data, runState: 'running' });
         addLog(`Running: ${node?.data?.label ?? e.nodeId} [${e.nodeType}]`, 'info');
-        // Set outgoing edges to 'running' so the dotted flowing animation plays
-        const outgoing = s.edges.filter(edge => edge.source === e.nodeId);
-        outgoing.forEach(edge => {
-          // Cancel any pending idle-reset for this edge
-          const existing = edgeResetTimers.current.get(edge.id);
-          if (existing) { clearTimeout(existing); edgeResetTimers.current.delete(edge.id); }
-          edgeRunningAt.current.set(edge.id, Date.now());
-          s.setEdges(eds => eds.map(ed =>
-            ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'running' } } : ed
-          ));
-        });
       })
     );
 
@@ -143,49 +133,6 @@ export const WorkflowCanvas = ({
         const node = s.nodes.find(n => n.id === e.nodeId);
         s.updateNodeData(e.nodeId, { ...node?.data, runState: 'success' });
         addLog(`Completed: ${node?.data?.label ?? e.nodeId}`, 'success');
-
-        const result = e.result as any;
-        const takenBranch: string | null = result?.branch ?? null;
-        const outgoingEdges = s.edges.filter(edge => edge.source === e.nodeId);
-        const MIN_RUNNING_MS = 450;
-
-        outgoingEdges.forEach(edge => {
-          const edgeBranch = edge.sourceHandle === 'true' || edge.sourceHandle === 'false'
-            ? edge.sourceHandle
-            : (edge.data?.branchPath ?? null);
-          const shouldAnimate = takenBranch === null || edgeBranch === takenBranch || edgeBranch === null;
-          if (!shouldAnimate) return;
-
-          // Cancel any stale reset timer for this edge
-          const existingTimer = edgeResetTimers.current.get(edge.id);
-          if (existingTimer) clearTimeout(existingTimer);
-
-          // Enforce minimum running display time before transitioning to success
-          const ranAt = edgeRunningAt.current.get(edge.id) ?? 0;
-          const elapsed = Date.now() - ranAt;
-          const delay = Math.max(0, MIN_RUNNING_MS - elapsed);
-
-          const applySuccess = () => {
-            edgeRunningAt.current.delete(edge.id);
-            useWorkflowEditorStore.getState().setEdges(eds => eds.map(ed =>
-              ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'success' } } : ed
-            ));
-            const t = setTimeout(() => {
-              edgeResetTimers.current.delete(edge.id);
-              useWorkflowEditorStore.getState().setEdges(eds => eds.map(ed =>
-                ed.id === edge.id ? { ...ed, data: { ...ed.data, runState: 'idle' } } : ed
-              ));
-            }, 900);
-            edgeResetTimers.current.set(edge.id, t);
-          };
-
-          if (delay > 0) {
-            const t = setTimeout(applySuccess, delay);
-            edgeResetTimers.current.set(edge.id, t);
-          } else {
-            applySuccess();
-          }
-        });
       })
     );
 
@@ -202,7 +149,7 @@ export const WorkflowCanvas = ({
     unsubs.push(
       sseManager.addListener<AgentToolStartEvent>('agent:tool:start', (e) => {
         if (e.workflowId !== workflowId) return;
-        addLog(`[Tool Started] ${e.toolName}`, 'info');
+        addLog(`Tool called: ${e.toolName}`, 'info');
       })
     );
 
@@ -211,9 +158,9 @@ export const WorkflowCanvas = ({
         if (e.workflowId !== workflowId) return;
         const isError = (e.toolOutput as any)?.error !== undefined;
         if (isError) {
-          addLog(`[Tool Failed] ${e.toolName}`, 'error');
+          addLog(`Tool failed: ${e.toolName} — ${(e.toolOutput as any).error}`, 'error');
         } else {
-          addLog(`[Tool Completed] ${e.toolName}`, 'success');
+          addLog(`Tool finished: ${e.toolName}`, 'success');
         }
       })
     );
@@ -814,14 +761,20 @@ export const WorkflowCanvas = ({
                           log.type === 'success' ? 'text-emerald-300' :
                             'text-[#C4C4C8]';
                       return (
-                        <div key={log.id} className="flex items-start gap-3">
+                        <motion.div
+                          key={log.id}
+                          initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+                          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                          transition={{ duration: 0.3, ease: 'easeOut' }}
+                          className="flex items-start gap-3"
+                        >
                           <span className="text-[#71717A] shrink-0 tabular-nums pt-px select-none">
                             {log.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </span>
                           <span className={`${msgColor} leading-relaxed`}>
                             {log.message}
                           </span>
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </motion.div>
