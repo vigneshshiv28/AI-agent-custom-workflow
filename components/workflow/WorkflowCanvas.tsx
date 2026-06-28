@@ -21,7 +21,7 @@ import { AgentLibraryPanel, AgentLibraryPopover } from './AgentLibrary';
 import { updateWorkflow, runWorkflow, deleteWorkflow } from '@/lib/api/workflow';
 import { toast } from 'sonner';
 import { sseManager } from '@/lib/events/sse';
-import type { NodeStartEvent, NodeSuccessEvent, NodeErrorEvent, WorkflowStartEvent, WorkflowCompleteEvent, WorkflowFailedEvent } from '@/lib/events/sse-events';
+import type { NodeStartEvent, NodeSuccessEvent, NodeErrorEvent, WorkflowStartEvent, WorkflowCompleteEvent, WorkflowFailedEvent, AgentToolStartEvent, AgentToolResultEvent } from '@/lib/events/sse-events';
 
 
 interface WorkflowCanvasProps {
@@ -196,6 +196,25 @@ export const WorkflowCanvas = ({
         const node = s.nodes.find(n => n.id === e.nodeId);
         s.updateNodeData(e.nodeId, { ...node?.data, runState: 'error' });
         addLog(`Failed: ${node?.data?.label ?? e.nodeId} — ${e.error}`, 'error');
+      })
+    );
+
+    unsubs.push(
+      sseManager.addListener<AgentToolStartEvent>('agent:tool:start', (e) => {
+        if (e.workflowId !== workflowId) return;
+        addLog(`[Tool Started] ${e.toolName}`, 'info');
+      })
+    );
+
+    unsubs.push(
+      sseManager.addListener<AgentToolResultEvent>('agent:tool:result', (e) => {
+        if (e.workflowId !== workflowId) return;
+        const isError = (e.toolOutput as any)?.error !== undefined;
+        if (isError) {
+          addLog(`[Tool Failed] ${e.toolName}`, 'error');
+        } else {
+          addLog(`[Tool Completed] ${e.toolName}`, 'success');
+        }
       })
     );
 

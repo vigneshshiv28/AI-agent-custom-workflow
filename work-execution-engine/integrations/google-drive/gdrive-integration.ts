@@ -74,6 +74,21 @@ data: ${JSON.stringify(input?.data ?? {}, null, 2)}
 ${userPrompt}
       `.trim(),
 
+      onToolExecutionStart({ toolCall }: any) {
+        console.log(`[gdrive:tool:start] ${toolCall.toolName}`, { input: toolCall.input });
+        context.emit({
+          type: "agent:tool:start",
+          toolName: toolCall.toolName,
+          toolInput: toolCall.input,
+          executionId: context.executionId,
+          userId: context.variables.userId,
+          workflowId: context.variables.workflowId,
+          nodeId: node.id,
+          nodeType: "google-drive",
+          timestamp: Date.now(),
+        });
+      },
+
       onToolExecutionEnd({ toolCall, toolExecutionMs, toolOutput }: any) {
         const tag = toolOutput.type === "tool-result" ? "✓" : "✗";
         console.log(
