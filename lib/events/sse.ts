@@ -85,6 +85,12 @@ class SSEManager {
             });
         }
 
+        for (const eventType of ['agent:tool:start', 'agent:tool:result'] as const) {
+            es.addEventListener(eventType, (e: MessageEvent) => {
+                this.handleRawEvent(eventType, e.data);
+            });
+        }
+
         es.onerror = () => {
             es.close();
             this.eventSource = null;

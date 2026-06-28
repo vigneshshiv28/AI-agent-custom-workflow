@@ -23,7 +23,7 @@ export const CustomEdge = ({
     targetX, targetY, targetPosition,
   });
 
-  const uid = useId();
+  const uid = useId().replace(/:/g, '_');
   const pathId = `edge-path-${uid}`;
 
   const runState: 'idle' | 'running' | 'success' | 'error' = data?.runState || 'idle';
@@ -83,13 +83,12 @@ export const CustomEdge = ({
         />
       )}
 
-      {/* ── RUNNING: solid filled line + soft glow ── */}
+      {/* ── SOLID FILLED LINE (Executing or Finished) ── */}
       <AnimatePresence>
-        {isRunning && (
-          <>
-            {/* Soft glow behind — blur only, not neon */}
+        {(isRunning || isSuccess) && (
+          <motion.g key="solid-group" exit={{ opacity: 0, transition: { duration: 0.3 } }}>
+            {/* Soft glow behind */}
             <motion.path
-              key="running-glow"
               d={edgePath}
               fill="none"
               stroke={activeColor}
@@ -97,77 +96,22 @@ export const CustomEdge = ({
               strokeLinecap="round"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.15 }}
-              exit={{ opacity: 0, transition: { duration: 0.2 } }}
               transition={{ duration: 0.2 }}
               style={{ pointerEvents: 'none', filter: 'blur(4px)' }}
             />
-            {/* Solid filled line */}
+            {/* Solid line */}
             <motion.path
-              key="running-solid"
               d={edgePath}
               fill="none"
               stroke={activeColor}
               strokeWidth={2.5}
               strokeLinecap="round"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.15 } }}
-              transition={{
-                pathLength: { duration: 0.4, ease: [0.4, 0, 0.2, 1] },
-                opacity: { duration: 0.15 },
-              }}
-              style={{ pointerEvents: 'none' }}
-            />
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ── SUCCESS: solid sweep then traveling dot ── */}
-      <AnimatePresence>
-        {isSuccess && (
-          <>
-            <motion.path
-              key="success-sweep"
-              d={edgePath}
-              fill="none"
-              stroke={activeColor}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              pathLength="1"
-              initial={{ pathLength: 0, opacity: 1 }}
-              animate={{ pathLength: 1, opacity: [1, 1, 0.4] }}
-              exit={{ opacity: 0, transition: { duration: 0.3 } }}
-              transition={{
-                pathLength: { duration: 0.45, ease: [0.4, 0, 0.2, 1] },
-                opacity: { duration: 0.85, times: [0, 0.5, 1] },
-              }}
-              style={{ pointerEvents: 'none' }}
-            />
-            <motion.g
-              key="success-particle"
               initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 1, 1, 0] }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6, times: [0, 0.1, 0.75, 1], ease: 'easeOut' }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
               style={{ pointerEvents: 'none' }}
-            >
-              <circle r={5} fill={activeColor} opacity={0.2}>
-                <animateMotion dur="0.5s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
-                  <mpath href={`#${pathId}`} />
-                </animateMotion>
-              </circle>
-              <circle r={3} fill={activeColor}>
-                <animateMotion dur="0.5s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
-                  <mpath href={`#${pathId}`} />
-                </animateMotion>
-              </circle>
-              <circle r={1.5} fill="white" opacity={0.85}>
-                <animateMotion dur="0.5s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1">
-                  <mpath href={`#${pathId}`} />
-                </animateMotion>
-              </circle>
-            </motion.g>
-          </>
+            />
+          </motion.g>
         )}
       </AnimatePresence>
 
