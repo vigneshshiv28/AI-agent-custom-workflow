@@ -137,24 +137,18 @@ export class WorkflowExecutor {
                 timestamp: Date.now(),
               });
 
-              await this.emit({
-                type: "workflow:failed",
-                executionId: this.executionId,
-                workflowId: this.workflowId,
-                userId: this.userId,
-                timestamp: Date.now(),
-                error: nodeError.message
-              });
-              
-              throw nodeError;
+              return { node, error: nodeError };
             }
+            
             return { node, output: context.outputs[node.id] };
           })
         );
 
+        for (const { node, output, error } of results) {
+          if (error) {
+            continue;
+          }
 
-
-        for (const { node, output } of results) {
           const children = this.graph.get(node) ?? [];
 
           if (node.type === "Decision") {
