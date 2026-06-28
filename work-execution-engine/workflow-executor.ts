@@ -231,7 +231,7 @@ export class WorkflowExecutor {
       if (nodeType === "Trigger") {
         result = { text: "Workflow triggered", data: {} };
       } else if (nodeType === "Decision") {
-        result = { text: "Decision evaluated", branch: "true", data: {} } as ConditionNodeOutput;
+        result = { branch: "true", output: input } as ConditionNodeOutput;
       } else {
         const integration = IntegrationRegistry.get(node.type);
         if (!integration) {
