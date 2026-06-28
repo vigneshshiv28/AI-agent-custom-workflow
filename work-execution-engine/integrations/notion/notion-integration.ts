@@ -64,6 +64,21 @@ ${userPrompt}
       `.trim(),
 
 
+      onToolExecutionStart({ toolCall }: any) {
+        console.log(`[notion:tool] start ${toolCall.toolName}`, { input: toolCall.input });
+        context.emit({
+          type: "agent:tool:start",
+          toolName: toolCall.toolName,
+          toolInput: toolCall.input,
+          executionId: context.executionId,
+          userId: context.variables.userId,
+          workflowId: context.variables.workflowId,
+          nodeId: node.id,
+          nodeType: "notion",
+          timestamp: Date.now(),
+        });
+      },
+
       onToolExecutionEnd({ toolCall, toolExecutionMs, toolOutput }: any) {
         const tag = toolOutput.type === "tool-result" ? "✓" : "✗";
         console.log(
