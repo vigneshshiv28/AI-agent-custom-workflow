@@ -18,6 +18,7 @@ export function createGoogleCalendarAgent(calendar: calendar_v3.Calendar) {
     - If the task is clear → act immediately
     - If something is ambiguous → make the most reasonable assumption, act, then state what you assumed
     - If the task is impossible (e.g. no available time found) → explain why and stop
+    - TIMEZONES: Be extremely careful with timezones! If the user or context specifies a timezone (e.g., IST, EST), you MUST convert it correctly to an RFC3339 timestamp before passing it to tools. Do NOT just append 'Z' to the local time. (e.g., 5 PM IST is UTC+05:30, so use the offset +05:30 or convert to UTC).
 
     ASSUMPTION EXAMPLES:
     - "schedule a meeting with john tomorrow" → pick a reasonable working hour free slot, act, then state when you scheduled it

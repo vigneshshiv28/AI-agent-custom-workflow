@@ -33,13 +33,13 @@ export class GoogleCalendarIntegration extends ConnectedIntegration {
     const refreshToken = credentials.refreshToken ? decrypt(credentials.refreshToken) : undefined;
 
     const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_INTEGRATIONS_CLIENT_ID,
-        process.env.GOOGLE_INTEGRATIONS_CLIENT_SECRET,
+      process.env.GOOGLE_INTEGRATIONS_CLIENT_ID,
+      process.env.GOOGLE_INTEGRATIONS_CLIENT_SECRET,
     );
 
     oauth2Client.setCredentials({
-        access_token: accessToken,
-        refresh_token: refreshToken
+      access_token: accessToken,
+      refresh_token: refreshToken
     });
 
     this.client = google.calendar({ version: 'v3', auth: oauth2Client });
@@ -58,9 +58,13 @@ export class GoogleCalendarIntegration extends ConnectedIntegration {
     const userPrompt: string = node.data?.Prompt ?? node.data?.prompt ?? "";
 
     const agent = createGoogleCalendarAgent(calendar);
-
     const result = await agent.generate({
       prompt: `
+===== SYSTEM CONTEXT =====
+Current Date and Time: ${new Date().toString()}
+Local Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
+Keep timezones in mind when scheduling. Convert specified timezones correctly to RFC3339 for tool inputs.
+
 ===== PREVIOUS NODE OUTPUT =====
 text: ${input?.text ?? "(none)"}
 data: ${JSON.stringify(input?.data ?? {}, null, 2)}
