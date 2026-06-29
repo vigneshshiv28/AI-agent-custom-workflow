@@ -65,6 +65,8 @@ model Workflow {
   user       User                @relation(fields: [userId], references: [id])
   Schedules  WorkflowSchedule[]
   Executions WorkflowExecution[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @default(now()) @updatedAt
 
   @@unique([userId, name])
   @@index([userId])

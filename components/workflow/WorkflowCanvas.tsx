@@ -13,7 +13,7 @@ import 'reactflow/dist/style.css';
 import { CustomNode } from './CustomNode';
 import { CustomEdge } from './CustomEdge';
 import { NodeConfigSidebar } from './NodeConfigSidebar';
-import { ArrowLeft, Play, ChevronUp, Loader2, CheckCircle2, Circle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Play, ChevronUp, Loader2, CheckCircle2, Circle, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Workflow } from '@/schema/workflow';
 import { useWorkflowEditorStore } from '@/store/workflow-editor';
@@ -274,6 +274,7 @@ export const WorkflowCanvas = ({
         ...eds,
         { id: `e-${triggerId}-${newNodeId}`, source: triggerId, target: newNodeId, type: 'custom' },
       ]);
+      store.setSelectedNode(newNode);
       return;
     }
 
@@ -294,6 +295,7 @@ export const WorkflowCanvas = ({
       },
     };
     store.addNode(newNode);
+    store.setSelectedNode(newNode);
   }, []);
 
   const handleAddNodeInline = useCallback((sourceNodeId: string, nodeType: string) => {
@@ -328,6 +330,7 @@ export const WorkflowCanvas = ({
         type: 'custom',
       },
     ]);
+    store.setSelectedNode(newNode);
   }, [storeAddNode]);
 
   const handleRun = useCallback(async () => {
@@ -454,10 +457,46 @@ export const WorkflowCanvas = ({
     else toast.error('Failed to publish workflow.');
   }, [isSaving, saveToServer]);
 
-  const reactFlowNodes = useMemo(() => nodes.map(n => ({
-    ...n,
-    data: { ...n.data, onAddNodeInline: handleAddNodeInline }
-  })), [nodes, handleAddNodeInline]);
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    const triggerNodes = nodes.filter(n => n.data?.type === 'Trigger');
+    if (triggerNodes.length === 0) {
+      errors.push('Workflow has no start node');
+      errors.push('At least one trigger is required');
+    }
+
+    const reachableNodes = new Set<string>(triggerNodes.map(n => n.id));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      edges.forEach(e => {
+        if (reachableNodes.has(e.source) && !reachableNodes.has(e.target)) {
+          reachableNodes.add(e.target);
+          changed = true;
+        }
+      });
+    }
+
+    const hasUnreachable = nodes.some(n => n.data?.type !== 'Trigger' && !reachableNodes.has(n.id));
+    if (hasUnreachable) {
+      errors.push('This workflow has unreachable agents');
+    }
+
+    const hasDisconnected = nodes.some(n => n.data?.type !== 'Trigger' && !edges.some(e => e.target === n.id));
+    if (hasDisconnected) {
+      errors.push('This workflow contains disconnected agents');
+    }
+
+    return errors;
+  }, [nodes, edges]);
+
+  const reactFlowNodes = useMemo(() => nodes.map(n => {
+    const isDisconnected = n.data?.type !== 'Trigger' && !edges.some(e => e.target === n.id);
+    return {
+      ...n,
+      data: { ...n.data, onAddNodeInline: handleAddNodeInline, isDisconnected }
+    };
+  }), [nodes, edges, handleAddNodeInline]);
 
   const reactFlowWrapper = React.useRef<HTMLDivElement>(null);
   const [rfInstance, setRfInstance] = React.useState<any>(null);
@@ -492,38 +531,42 @@ export const WorkflowCanvas = ({
           data: { label: 'New Trigger', type: 'Trigger', description: 'Configure this step', Prompt: '' },
         });
         const newId = Math.random().toString(36).substr(2, 9);
-        store.addNode({
+        const newNode: Node = {
           id: newId,
           type: nodeType,
           position,
           deletable: true,
           data: { label: `New ${nodeType}`, type: nodeType, description: 'Configure this step', Prompt: '' },
-        });
+        };
+        store.addNode(newNode);
         store.setEdges((eds: Edge[]) => [
           ...eds,
           { id: `e-${triggerId}-${newId}`, source: triggerId, target: newId, type: 'custom' },
         ]);
+        store.setSelectedNode(newNode);
       } else {
         const newId = Math.random().toString(36).substr(2, 9);
-        store.addNode({
+        const newNode: Node = {
           id: newId,
           type: nodeType,
           position,
           deletable: nodeType !== 'Trigger',
           data: { label: `New ${nodeType}`, type: nodeType, description: 'Configure this step', Prompt: '' },
-        });
+        };
+        store.addNode(newNode);
+        store.setSelectedNode(newNode);
       }
     },
     [rfInstance]
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#1c1c1c' }}>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--color-onyx)' }}>
 
       {/* Top Navigation — 56px */}
       <header
         className="h-14 flex items-center justify-between px-5 flex-shrink-0 z-10"
-        style={{ background: '#111113', borderBottom: '1px solid #26262B' }}
+        style={{ background: 'var(--color-charcoal)', borderBottom: '1px solid var(--color-graphite)' }}
       >
         {/* Left */}
         <div className="flex items-center gap-4">
@@ -534,7 +577,7 @@ export const WorkflowCanvas = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-          <div style={{ width: '1px', height: '16px', background: '#26262B' }} />
+          <div style={{ width: '1px', height: '16px', background: 'var(--color-graphite)' }} />
 
           <input
             type="text"
@@ -572,11 +615,29 @@ export const WorkflowCanvas = ({
 
         {/* Right */}
         <div className="flex items-center gap-2">
+          {/* Validation Warnings */}
+          {validationErrors.length > 0 && (
+            <div className="relative group/validation flex items-center h-full px-2 cursor-pointer">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <div className="absolute top-full right-0 mt-2 w-64 bg-obsidian border border-graphite shadow-2xl p-3 z-50 opacity-0 group-hover/validation:opacity-100 pointer-events-none transition-opacity" style={{ background: 'var(--color-obsidian)', borderColor: 'var(--color-graphite)' }}>
+                <h4 className="text-[11px] font-semibold text-amber-500 uppercase tracking-wider mb-2">Validation Issues</h4>
+                <ul className="space-y-1.5">
+                  {validationErrors.map((err, i) => (
+                    <li key={i} className="text-[12px] text-snow flex items-start gap-2">
+                      <span className="text-amber-500 mt-0.5">•</span>
+                      <span className="leading-tight">{err}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* Run */}
           <button
             onClick={handleRun}
             disabled={isTesting}
-            className="h-8 px-3 flex items-center justify-center text-[12px] font-medium text-[#A1A1AA] border border-[#26262B] hover:border-[#3F3F46] hover:text-[#FAFAFA] transition-all duration-150 ease-ui-out active:scale-[0.97] disabled:opacity-40 cursor-pointer"
+            className="h-8 px-3 flex items-center justify-center text-[12px] font-medium text-fog border border-graphite hover:border-iron hover:text-snow transition-all duration-150 ease-ui-out active:scale-[0.97] disabled:opacity-40 cursor-pointer"
             style={{ borderRadius: 0, minWidth: '100px' }}
           >
             <AnimatePresence mode="wait" initial={false}>
@@ -612,7 +673,7 @@ export const WorkflowCanvas = ({
           <button
             onClick={handlePublish}
             disabled={isSaving}
-            className="h-8 px-3 flex items-center justify-center text-[12px] font-semibold transition-all duration-150 ease-ui-out active:scale-[0.97] disabled:opacity-50 cursor-pointer"
+            className="h-8 px-3 flex items-center justify-center text-[12px] font-semibold transition-all duration-150 ease-out active:scale-[0.97] disabled:opacity-50 cursor-pointer"
             style={{ background: '#F49ACB', color: '#09090B', borderRadius: 0, minWidth: '100px' }}
           >
             <AnimatePresence mode="wait" initial={false}>
@@ -662,17 +723,17 @@ export const WorkflowCanvas = ({
           {nodes.length === 0 && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
               <div className="flex flex-col items-center text-center pointer-events-auto">
-                <h2 className="text-[15px] font-medium text-[#FAFAFA] mb-2 tracking-tight">
+                <h2 className="text-[15px] font-medium text-snow mb-2 tracking-tight">
                   Create your first workflow
                 </h2>
-                <p className="text-[13px] text-[#52525B] mb-6 max-w-[320px] leading-relaxed">
+                <p className="text-[13px] text-fog mb-6 max-w-[320px] leading-relaxed">
                   Connect agents together to automate decisions and actions.
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => addNode('Trigger')}
                     className="h-8 px-4 text-[12px] font-medium text-[#09090B] transition-all duration-150 ease-ui-out hover:opacity-80 active:scale-[0.97] cursor-pointer"
-                    style={{ background: '#F49ACB', borderRadius: 0 }}
+                    style={{ background: '#FAFAFA', borderRadius: 0 }}
                   >
                     Create agent
                   </button>
@@ -697,19 +758,19 @@ export const WorkflowCanvas = ({
             fitView
             fitViewOptions={{ padding: 1.5, minZoom: 0.1 }}
             minZoom={0.1}
-            style={{ background: '#1c1c1c' }}
+            style={{ background: 'var(--color-onyx)' }}
             defaultEdgeOptions={{ type: 'custom' }}
           >
             <Background
-              color="#2e2e2e"
+              color="var(--color-iron)"
               gap={24}
-              size={6}
-              variant={BackgroundVariant.Cross}
+              size={3}
+              variant={BackgroundVariant.Dots}
             />
             <Controls
               style={{
-                background: '#111113',
-                border: '1px solid #26262B',
+                background: 'var(--color-charcoal)',
+                border: '1px solid var(--color-graphite)',
                 borderRadius: 0,
                 boxShadow: 'none',
               }}
@@ -727,21 +788,21 @@ export const WorkflowCanvas = ({
               transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
               className="absolute bottom-0 left-0 right-0 z-40 flex flex-col overflow-hidden"
               style={{
-                background: '#111113',
-                borderTop: '1px solid #26262B',
+                background: 'var(--color-charcoal)',
+                borderTop: '1px solid var(--color-graphite)',
                 height: isLogsExpanded ? 280 : 40,
                 transition: 'height 0.2s ease',
               }}
             >
               <button
                 onClick={() => setIsLogsExpanded(v => !v)}
-                className="h-10 px-5 flex items-center justify-between shrink-0 w-full hover:bg-white/[0.02] transition-colors duration-150 ease-ui-out active:bg-white/[0.04] cursor-pointer"
+                className="h-10 px-5 flex items-center justify-between shrink-0 w-full hover:bg-[#F49ACB]/[0.05] transition-colors duration-150 ease-out active:bg-[#F49ACB]/[0.1] cursor-pointer"
               >
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#A1A1AA]">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-fog">
                   Logs {logs.length > 0 && `(${logs.length})`}
                 </span>
                 <ChevronUp
-                  className="w-3.5 h-3.5 text-[#A1A1AA] transition-transform duration-150"
+                  className="w-3.5 h-3.5 text-fog transition-transform duration-150"
                   style={{ transform: isLogsExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
                 />
               </button>
@@ -759,7 +820,7 @@ export const WorkflowCanvas = ({
                       const msgColor =
                         log.type === 'error' ? 'text-red-300' :
                           log.type === 'success' ? 'text-emerald-300' :
-                            'text-[#C4C4C8]';
+                            'text-mist';
                       return (
                         <motion.div
                           key={log.id}
@@ -768,7 +829,7 @@ export const WorkflowCanvas = ({
                           transition={{ duration: 0.3, ease: 'easeOut' }}
                           className="flex items-start gap-3"
                         >
-                          <span className="text-[#71717A] shrink-0 tabular-nums pt-px select-none">
+                          <span className="text-slate shrink-0 tabular-nums pt-px select-none">
                             {log.timestamp.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </span>
                           <span className={`${msgColor} leading-relaxed`}>

@@ -3,8 +3,7 @@ import React, { useState, useCallback } from "react";
 import { Zap, GitBranch, Cloud, FileText, Search } from "lucide-react";
 import NotionIcon from "@/components/icons/notion";
 import * as Popover from "@radix-ui/react-popover";
-import GmailIcon from "@/components/icons/gmail";
-import { GoogleCalendarIcon, GoogleDriveIcon } from "@/components/icons/integration-icons";
+import { GoogleCalendarIcon, GoogleDriveIcon, GmailIcon } from "@/components/icons/integration-icons";
 
 
 export interface AgentDef {
@@ -33,7 +32,7 @@ export const AGENTS: AgentDef[] = [
     type: "gmail",
     label: "Gmail",
     description: "Send and read emails",
-    icon: <GmailIcon width={14} height={14} />,
+    icon: <GmailIcon className="w-3.5 h-3.5" />,
   },
   {
     type: "google-calendar",
@@ -80,26 +79,27 @@ function AgentRow({ agent, onSelect, draggable = false }: AgentRowProps) {
       draggable={draggable}
       onDragStart={draggable ? handleDragStart : undefined}
       onClick={() => onSelect(agent.type)}
-      className="group flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-white/[0.04] transition-colors duration-100 select-none"
-      style={{ borderBottom: "1px solid #1a1a1d" }}
+      title={draggable ? "Drag to canvas or click to add" : undefined}
+      className={`group flex items-center gap-3 px-3 py-2.5 ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} hover:bg-white/[0.04] transition-colors duration-100 select-none`}
+      style={{ borderBottom: "1px solid var(--color-obsidian)" }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onSelect(agent.type)}
     >
       {/* Icon */}
       <div
-        className="w-6 h-6 flex items-center justify-center shrink-0 text-[#71717A] group-hover:text-[#A1A1AA] transition-colors"
-        style={{ border: "1px solid #26262B" }}
+        className="w-6 h-6 flex items-center justify-center shrink-0 text-slate group-hover:text-fog transition-colors"
+        style={{ border: "1px solid var(--color-graphite)" }}
       >
         {agent.icon}
       </div>
 
       {/* Label + description */}
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium text-[#E4E4E7] leading-tight">
+        <p className="text-[12px] font-medium text-platinum leading-tight">
           {agent.label}
         </p>
-        <p className="text-[10px] text-[#52525B] leading-tight mt-0.5 truncate">
+        <p className="text-[10px] text-slate leading-tight mt-0.5 truncate">
           {agent.description}
         </p>
       </div>
@@ -122,18 +122,18 @@ export function AgentLibraryPanel({ onSelect }: AgentLibraryPanelProps) {
       className="flex flex-col h-full"
       style={{
         width: 220,
-        background: "#111113",
-        borderRight: "1px solid #26262B",
+        background: "var(--color-charcoal)",
+        borderRight: "1px solid var(--color-graphite)",
         flexShrink: 0,
       }}
     >
       {/* Header */}
       <div
         className="px-4 pt-4 pb-3"
-        style={{ borderBottom: "1px solid #26262B" }}
+        style={{ borderBottom: "1px solid var(--color-graphite)" }}
       >
         <p
-          className="text-[10px] font-mono uppercase tracking-widest text-[#52525B] mb-3"
+          className="text-[10px] font-mono uppercase tracking-widest text-slate mb-3"
           style={{ letterSpacing: "0.12em" }}
         >
           Library
@@ -142,21 +142,21 @@ export function AgentLibraryPanel({ onSelect }: AgentLibraryPanelProps) {
         {/* Search */}
         <div
           className="flex items-center gap-2 px-2.5 py-1.5"
-          style={{ border: "1px solid #26262B", background: "#0d0d0f" }}
+          style={{ border: "1px solid var(--color-graphite)", background: "var(--color-onyx)" }}
         >
-          <Search className="w-3 h-3 text-[#3F3F46] shrink-0" />
+          <Search className="w-3 h-3 text-iron shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search agents..."
-            className="flex-1 bg-transparent border-none outline-none text-[11px] text-[#A1A1AA] placeholder:text-[#3F3F46]"
+            className="flex-1 bg-transparent border-none outline-none text-[11px] text-fog placeholder:text-iron"
             id="library-search"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
-              className="text-[#3F3F46] hover:text-[#71717A] transition-colors text-[10px] leading-none"
+              className="text-iron hover:text-slate transition-colors text-[10px] leading-none"
               aria-label="Clear search"
             >
               ✕
@@ -168,7 +168,7 @@ export function AgentLibraryPanel({ onSelect }: AgentLibraryPanelProps) {
       {/* Agent list */}
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="text-[11px] text-[#3F3F46] text-center py-8 font-mono">
+          <p className="text-[11px] text-iron text-center py-8 font-mono">
             No agents found
           </p>
         ) : (
@@ -186,9 +186,9 @@ export function AgentLibraryPanel({ onSelect }: AgentLibraryPanelProps) {
       {/* Drag hint footer */}
       <div
         className="px-4 py-3"
-        style={{ borderTop: "1px solid #26262B" }}
+        style={{ borderTop: "1px solid var(--color-graphite)" }}
       >
-        <p className="text-[9px] text-[#3F3F46] font-mono leading-relaxed">
+        <p className="text-[9px] text-iron font-mono leading-relaxed">
           Drag to canvas or click to add
         </p>
       </div>
@@ -231,8 +231,8 @@ export function AgentLibraryPopover({
           className="z-[200]"
           style={{
             width: 220,
-            background: "#111113",
-            border: "1px solid #26262B",
+            background: "var(--color-charcoal)",
+            border: "1px solid var(--color-graphite)",
             boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
             outline: "none",
           }}
@@ -240,26 +240,26 @@ export function AgentLibraryPopover({
           {/* Search */}
           <div
             className="px-3 pt-3 pb-2"
-            style={{ borderBottom: "1px solid #26262B" }}
+            style={{ borderBottom: "1px solid var(--color-graphite)" }}
           >
             <p
-              className="text-[9px] font-mono uppercase tracking-widest text-[#52525B] mb-2"
+              className="text-[9px] font-mono uppercase tracking-widest text-slate mb-2"
               style={{ letterSpacing: "0.12em" }}
             >
               Library
             </p>
             <div
               className="flex items-center gap-2 px-2 py-1.5"
-              style={{ border: "1px solid #26262B", background: "#0d0d0f" }}
+              style={{ border: "1px solid var(--color-graphite)", background: "var(--color-onyx)" }}
             >
-              <Search className="w-3 h-3 text-[#3F3F46] shrink-0" />
+              <Search className="w-3 h-3 text-iron shrink-0" />
               <input
                 autoFocus
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search agents..."
-                className="flex-1 bg-transparent border-none outline-none text-[11px] text-[#A1A1AA] placeholder:text-[#3F3F46]"
+                className="flex-1 bg-transparent border-none outline-none text-[11px] text-fog placeholder:text-iron"
               />
             </div>
           </div>
@@ -267,7 +267,7 @@ export function AgentLibraryPopover({
           {/* List */}
           <div style={{ maxHeight: 280, overflowY: "auto" }}>
             {filtered.length === 0 ? (
-              <p className="text-[11px] text-[#3F3F46] text-center py-6 font-mono">
+              <p className="text-[11px] text-iron text-center py-6 font-mono">
                 No agents found
               </p>
             ) : (

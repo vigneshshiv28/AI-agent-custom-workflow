@@ -67,14 +67,14 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
   };
 
   const inputClass = `
-    w-full bg-[#09090B] border border-[#26262B]
-    px-3 py-2 text-[13px] text-[#FAFAFA]
+    w-full bg-onyx border border-graphite
+    px-3 py-2 text-[13px] text-snow
     focus:border-[#F49ACB] outline-none
-    placeholder:text-[#3F3F46]
+    placeholder:text-iron
     transition-colors duration-150
   `.replace(/\s+/g, ' ').trim();
 
-  const labelClass = "text-[10px] uppercase tracking-widest text-[#52525B] font-mono block mb-1.5";
+  const labelClass = "text-[10px] uppercase tracking-widest text-slate font-mono block mb-1.5";
 
   return (
     <motion.div
@@ -82,23 +82,23 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="w-[360px] bg-[#111113] border-l border-[#26262B] h-full flex flex-col absolute right-0 top-0 z-50 overflow-hidden"
+      className="w-[360px] bg-charcoal border-l border-graphite h-full flex flex-col absolute right-0 top-0 z-50 overflow-hidden"
     >
       {/* Header */}
-      <div className="h-14 px-5 flex items-center justify-between border-b border-[#26262B] flex-shrink-0">
-        <span className="text-[13px] font-medium text-[#FAFAFA] tracking-tight">Configure Node</span>
+      <div className="h-14 px-5 flex items-center justify-between border-b border-graphite flex-shrink-0">
+        <span className="text-[13px] font-medium text-snow tracking-tight">Configure Node</span>
         <div className="flex items-center gap-2">
           {node.data.type !== 'Trigger' && onDelete && (
             <button
               onClick={() => onDelete(node.id)}
-              className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer px-2 py-1 bg-red-400/10 hover:bg-red-400/20 rounded"
+              className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-all duration-150 ease-out active:scale-[0.97] cursor-pointer px-2 py-1 bg-red-400/10 hover:bg-red-400/20 rounded"
             >
               Delete
             </button>
           )}
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center text-[#52525B] hover:text-[#A1A1AA] transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center text-slate hover:text-fog transition-all duration-150 ease-out active:scale-[0.97] cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -125,7 +125,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
         {node.data.type === 'Trigger' ? (
           <div>
             <label className={labelClass}>Type</label>
-            <div className="px-3 py-2 bg-[#09090B] border border-[#26262B] text-[13px] text-[#3F3F46]">
+            <div className="px-3 py-2 bg-onyx border border-graphite text-[13px] text-iron">
               Trigger
             </div>
           </div>
@@ -142,14 +142,14 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                 <option value="Monitor">Monitor</option>
                 <option value="Decision">Decision</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525B] pointer-events-none" />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate pointer-events-none" />
             </div>
           </div>
         )}
 
         {/* Trigger Schedule */}
         {node.data.type === 'Trigger' && (
-          <div className="pt-4 border-t border-[#26262B] space-y-4">
+          <div className="pt-4 border-t border-graphite space-y-4">
             <div>
               <label className={labelClass}>Schedule</label>
               <div className="grid grid-cols-2 gap-1.5">
@@ -162,9 +162,9 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                   <button
                     key={label}
                     onClick={action}
-                    className={`flex items-center gap-2 px-3 py-2 border text-[11px] font-mono tracking-wider transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer ${active
-                      ? 'border-[#F49ACB] text-[#F49ACB] bg-[#F49ACB]/5'
-                      : 'border-[#26262B] text-[#52525B] hover:border-[#3F3F46] hover:text-[#A1A1AA]'
+                    className={`flex items-center gap-2 px-3 py-2 border text-[11px] font-mono tracking-wider transition-all duration-150 ease-out active:scale-[0.97] cursor-pointer ${active
+                      ? 'border-[#F49ACB] text-[#F49ACB] bg-[#F49ACB]/10'
+                      : 'border-graphite text-slate hover:border-iron hover:text-fog'
                       }`}
                   >
                     {icon}
@@ -200,7 +200,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                       <option value="WEEKS">Weeks</option>
                       <option value="MONTHS">Months</option>
                     </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525B] pointer-events-none" />
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate pointer-events-none" />
                   </div>
                 </div>
               </div>
@@ -228,7 +228,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                   placeholder="* * * * *"
                   className={`${inputClass} font-mono`}
                 />
-                <p className="text-[10px] text-[#3F3F46] mt-1.5 font-mono">min hour day month weekday</p>
+                <p className="text-[10px] text-iron mt-1.5 font-mono">min hour day month weekday</p>
               </div>
             )}
 
@@ -240,16 +240,16 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                   <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                     <PopoverTrigger asChild>
                       <button
-                        className={`${inputClass} w-full flex items-center justify-between cursor-pointer transition-all duration-150 ease-ui-out active:scale-[0.99]`}
+                        className={`${inputClass} w-full flex items-center justify-between cursor-pointer transition-all duration-150 ease-out active:scale-[0.97]`}
                       >
-                        <span className={selectedDate ? 'text-[#FAFAFA]' : 'text-[#3F3F46]'}>
+                        <span className={selectedDate ? 'text-snow' : 'text-iron'}>
                           {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
                         </span>
-                        <CalendarDays className="w-3.5 h-3.5 text-[#52525B] shrink-0" />
+                        <CalendarDays className="w-3.5 h-3.5 text-slate shrink-0" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
-                      className="w-auto p-0 border-[#26262B] bg-[#111113] shadow-xl"
+                      className="w-auto p-0 border-graphite bg-charcoal shadow-xl"
                       align="start"
                       side="bottom"
                       style={{ zIndex: 9999 }}
@@ -260,7 +260,7 @@ export const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({ node, onCl
                         onSelect={handleDateSelect}
                         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
 
-                        className="text-[#FAFAFA] [&_.rdp-day_selected]:bg-[#F49ACB] [&_.rdp-day_selected]:text-black [&_.rdp-day:hover:not(.rdp-day_selected)]:bg-[#26262B] [&_.rdp-nav_button]:text-[#A1A1AA] [&_.rdp-nav_button:hover]:bg-[#26262B]"
+                        className="text-snow [&_.rdp-day_selected]:bg-[#F49ACB] [&_.rdp-day_selected]:text-black [&_.rdp-day:hover:not(.rdp-day_selected)]:bg-graphite [&_.rdp-nav_button]:text-fog [&_.rdp-nav_button:hover]:bg-graphite"
                       />
                     </PopoverContent>
                   </Popover>

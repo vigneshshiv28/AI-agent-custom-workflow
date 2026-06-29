@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { motion } from 'motion/react';
-import { Zap, Clock, GitBranch, Loader2, AlertCircle } from 'lucide-react';
+import { Zap, Clock, GitBranch, Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { AgentLibraryPopover } from './AgentLibrary';
 import { IntegrationIcon } from '@/components/icons/integration-icons';
 
@@ -60,34 +60,34 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
   const isRunning = runState === 'running';
   const isError = runState === 'error';
 
-  let borderColor = selected
+  let borderColor = selected && !isTrigger
     ? 'border-[#F49ACB]/80'
-    : isTrigger
-      ? 'border-primary/50'
-      : isDecision
-        ? 'border-yellow-500/40'
-        : 'border-white/10';
+    : isDecision
+      ? 'border-yellow-500/40'
+      : selected && isTrigger
+        ? 'border-iron'
+        : 'border-graphite';
 
-  if (isRunning) borderColor = 'border-[#F49ACB] shadow-[0_0_15px_rgba(244,154,203,0.3)] animate-pulse';
-  if (isError) borderColor = 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]';
+  if (isRunning) borderColor = 'border-snow';
+  if (isError) borderColor = 'border-red-500';
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-      className={`relative bg-black border ${borderColor} min-w-[240px] group transition-colors hover:border-primary/50 rounded-none overflow-visible`}
+      className={`relative bg-obsidian border ${borderColor} min-w-[240px] group transition-colors hover:border-iron rounded-none overflow-visible`}
       style={{ boxShadow: '0 6px 24px rgba(0,0,0,0.7), 0 2px 6px rgba(0,0,0,0.5)' }}
     >
       {/* Corner Accents — scaled down */}
-      <div className="absolute -top-[1px] -left-[1px] w-5 h-5 border-t-[3px] border-l-[3px] border-primary z-20 pointer-events-none" />
-      <div className="absolute -bottom-[1px] -right-[1px] w-5 h-5 border-b-[3px] border-r-[3px] border-primary z-20 pointer-events-none" />
+      <div className="absolute -top-[1px] -left-[1px] w-5 h-5 border-t-[3px] border-l-[3px] border-[#F49ACB] z-20 pointer-events-none" />
+      <div className="absolute -bottom-[1px] -right-[1px] w-5 h-5 border-b-[3px] border-r-[3px] border-[#F49ACB] z-20 pointer-events-none" />
 
       {/* Header */}
-      <div className={`px-4 py-3 border-b border-border relative ${isTrigger ? 'bg-primary/5' : 'bg-black/20'}`}>
+      <div className={`px-4 py-3 border-b border-graphite relative bg-black/20`}>
         {isRunning && (
           <div className="absolute top-3 right-3">
-            <Loader2 className="w-4 h-4 animate-spin text-[#F49ACB]" />
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
           </div>
         )}
         {isError && (
@@ -95,18 +95,23 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
             <AlertCircle className="w-4 h-4 text-red-500" />
           </div>
         )}
+        {data.isDisconnected && !isRunning && !isError && (
+          <div className="absolute top-3 right-3 group/disconnected" title="Needs a connection">
+            <AlertTriangle className="w-4 h-4 text-amber-500 opacity-80" />
+          </div>
+        )}
         {isTrigger ? (
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 flex items-center justify-center bg-primary/20 text-primary border border-primary/30 shrink-0">
-              <Zap className="w-3.5 h-3.5" />
+            <div className="w-10 h-10 flex items-center justify-center bg-obsidian text-snow border border-graphite shrink-0">
+              <Zap className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-[13px] font-semibold text-foreground tracking-tight leading-tight">
+              <h3 className="text-[13px] font-semibold text-snow tracking-tight leading-tight">
                 Trigger
               </h3>
-              <div className="flex items-center gap-1 mt-0.5 text-primary/70">
+              <div className="flex items-center gap-1 mt-0.5 text-gray-300">
                 <Clock className="w-2.5 h-2.5" />
-                <span className={`text-[9px] font-mono uppercase tracking-wider ${!data.schedule ? 'text-muted-foreground/40' : ''}`}>
+                <span className={`text-[9px] font-mono uppercase tracking-wider ${!data.schedule ? 'text-gray-500' : ''}`}>
                   {!data.schedule ? 'No schedule' : scheduleText}
                 </span>
               </div>
@@ -114,16 +119,16 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
           </div>
         ) : (
           <div className="flex items-center gap-2.5 pr-6">
-            <div className="w-7 h-7 flex items-center justify-center bg-black/40 shrink-0">
+            <div className="w-10 h-10 flex items-center justify-center bg-obsidian shrink-0">
               {isDecision ? (
-                <GitBranch className="w-3.5 h-3.5 text-yellow-400" />
+                <GitBranch className="w-6 h-6 text-yellow-400" />
               ) : ['gmail', 'google-calendar', 'notion', 'google-drive'].includes(data.type) ? (
-                <IntegrationIcon provider={data.type} className="w-4 h-4" />
+                <IntegrationIcon provider={data.type} className="w-6 h-6" />
               ) : logoUrl ? (
                 <img
                   src={logoUrl}
                   alt="Agent Logo"
-                  className="w-4 h-4 object-contain"
+                  className="w-6 h-6 object-contain"
                   referrerPolicy="no-referrer"
                 />
               ) : (
@@ -133,11 +138,11 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
               )}
             </div>
             <div className="min-w-0">
-              <h3 className="text-[13px] font-semibold text-foreground tracking-tight leading-tight truncate">
+              <h3 className="text-[13px] font-semibold text-snow tracking-tight leading-tight truncate">
                 {data.label}
               </h3>
               {data.description && (
-                <p className="text-[10px] text-muted-foreground mt-0.5 font-mono opacity-60 leading-tight truncate max-w-[160px]">
+                <p className="text-[10px] text-gray-300 mt-0.5 font-mono leading-tight truncate max-w-[160px]">
                   {data.description}
                 </p>
               )}
@@ -148,27 +153,27 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
 
       {/* Data Rows */}
       <div className="flex flex-col">
-        <div className="flex justify-between items-center px-4 py-2.5 border-b border-border/50 hover:bg-white/5 transition-colors">
-          <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-mono">Type</span>
-          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-foreground">
+        <div className="flex justify-between items-center px-4 py-2.5 border-b border-graphite hover:bg-[#F49ACB]/10 transition-colors">
+          <span className="text-[9px] uppercase tracking-widest text-slate font-mono">Type</span>
+          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-mist">
             {data.type ? data.type.toUpperCase() : 'ACTION'}
           </span>
         </div>
 
         {isTrigger && (
-          <div className="flex justify-between items-center px-4 py-2.5 border-b border-border/50 hover:bg-white/5 transition-colors">
-            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-mono">Schedule</span>
-            <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-foreground">
+          <div className="flex justify-between items-center px-4 py-2.5 border-b border-graphite hover:bg-[#F49ACB]/10 transition-colors">
+            <span className="text-[9px] uppercase tracking-widest text-slate font-mono">Schedule</span>
+            <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-mist">
               {data.schedule ? data.schedule.mode : 'NONE'}
             </span>
           </div>
         )}
 
         {data.Prompt && (
-          <div className="flex justify-between items-center px-4 py-2.5 border-b border-border/50 hover:bg-white/5 transition-colors">
-            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-mono">Prompt</span>
+          <div className="flex justify-between items-center px-4 py-2.5 border-b border-graphite hover:bg-[#F49ACB]/10 transition-colors">
+            <span className="text-[9px] uppercase tracking-widest text-slate font-mono">Prompt</span>
             <span
-              className="text-[9px] font-mono font-bold uppercase tracking-widest text-foreground truncate max-w-[120px] text-right opacity-70"
+              className="text-[9px] font-mono font-bold uppercase tracking-widest text-mist truncate max-w-[120px] text-right opacity-70"
               title={data.Prompt}
             >
               {data.Prompt}
@@ -183,7 +188,8 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
           type="target"
           position={Position.Left}
           isConnectable={isConnectable}
-          className="!w-3 !h-4 !bg-primary !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair"
+          title="Drag to connect"
+          className="!w-3 !h-4 !bg-primary !border-2 !border-background !rounded-full z-30 hover:!bg-[#F49ACB] hover:!scale-125 transition-all cursor-crosshair"
         />
       )}
 
@@ -196,7 +202,8 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
             position={Position.Right}
             isConnectable={isConnectable}
             style={{ top: '30%' }}
-            className="!w-3 !h-4 !bg-green-500 !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair"
+            title="Drag to connect"
+            className="!w-3 !h-4 !bg-green-500 !border-2 !border-background !rounded-full z-30 hover:!bg-[#F49ACB] hover:!scale-125 transition-all cursor-crosshair"
           />
           <Handle
             id="false"
@@ -204,14 +211,15 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
             position={Position.Right}
             isConnectable={isConnectable}
             style={{ top: '70%' }}
-            className="!w-3 !h-4 !bg-orange-500 !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair"
+            title="Drag to connect"
+            className="!w-3 !h-4 !bg-red-500 !border-2 !border-background !rounded-full z-30 hover:!bg-[#F49ACB] hover:!scale-125 transition-all cursor-crosshair"
           />
           {/* Labels outside node */}
           <div className="absolute pointer-events-none" style={{ right: '-44px', top: '30%', transform: 'translateY(-50%)' }}>
             <span className="text-[9px] font-bold text-green-400 font-mono tracking-wider uppercase">TRUE</span>
           </div>
           <div className="absolute pointer-events-none" style={{ right: '-48px', top: '70%', transform: 'translateY(-50%)' }}>
-            <span className="text-[9px] font-bold text-orange-400 font-mono tracking-wider uppercase">FALSE</span>
+            <span className="text-[9px] font-bold text-red-400 font-mono tracking-wider uppercase">FALSE</span>
           </div>
         </>
       ) : (
@@ -219,14 +227,17 @@ export const CustomNode = memo(({ id, data, isConnectable, selected }: NodeProps
           type="source"
           position={Position.Right}
           isConnectable={isConnectable}
-          className="!w-3 !h-4 !bg-primary !border-2 !border-background !rounded-full z-30 hover:!bg-white hover:!scale-125 transition-all cursor-crosshair"
+          title="Drag to connect"
+          className="!w-3 !h-4 !bg-primary !border-2 !border-background !rounded-full z-30 hover:!bg-[#F49ACB] hover:!scale-125 transition-all cursor-crosshair"
         />
       )}
 
       <div className="absolute right-[-26px] top-1/2 -translate-y-1/2 z-40 opacity-0 group-hover:opacity-100 transition-opacity">
         <AgentLibraryPopover onSelect={handleInlineAdd} side="right" align="center">
           <button
-            className="w-5 h-5 bg-[#111113] border border-[#26262B] flex items-center justify-center text-[#71717A] hover:bg-[#1a1a1d] hover:border-[#3F3F46] hover:text-[#A1A1AA] transition-all duration-150 shadow-lg hover:scale-110 active:scale-95 nodrag nopan"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="w-5 h-5 bg-charcoal border border-graphite flex items-center justify-center text-slate hover:bg-iron hover:border-iron hover:text-fog transition-all duration-150 shadow-lg hover:scale-110 active:scale-95 nodrag nopan"
             style={{ fontSize: '12px', lineHeight: 1, fontWeight: 700, cursor: 'pointer' }}
             title="Add next agent"
           >

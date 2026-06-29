@@ -32,15 +32,15 @@ export const CustomEdge = ({
     sourceHandleId === 'true' || sourceHandleId === 'false' ? sourceHandleId : null;
 
   const branchColor =
-    branchPath === 'true'  ? '#22c55e' :
-    branchPath === 'false' ? '#f97316' :
-    '#d17bb5';
+    branchPath === 'true' ? '#22c55e' :
+      branchPath === 'false' ? '#ef4444' :
+        '#F49ACB';
 
   const activeColor = runState === 'error' ? '#ef4444' : branchColor;
 
   const isRunning = runState === 'running';
   const isSuccess = runState === 'success';
-  const isError   = runState === 'error';
+  const isError = runState === 'error';
 
   return (
     <>
@@ -64,7 +64,7 @@ export const CustomEdge = ({
           transition={{ duration: selected ? 0.8 : 1.8, repeat: Infinity, ease: 'linear' }}
           style={{
             pointerEvents: 'none',
-            opacity: selected ? 0.7 : 0.35,
+            opacity: selected ? 1 : 0.8,
           }}
         />
       )}
@@ -87,18 +87,7 @@ export const CustomEdge = ({
       <AnimatePresence>
         {(isRunning || isSuccess) && (
           <motion.g key="solid-group" exit={{ opacity: 0, transition: { duration: 0.3 } }}>
-            {/* Soft glow behind */}
-            <motion.path
-              d={edgePath}
-              fill="none"
-              stroke={activeColor}
-              strokeWidth={8}
-              strokeLinecap="round"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.15 }}
-              transition={{ duration: 0.2 }}
-              style={{ pointerEvents: 'none', filter: 'blur(4px)' }}
-            />
+
             {/* Solid line */}
             <motion.path
               d={edgePath}
@@ -128,9 +117,9 @@ export const CustomEdge = ({
           >
             <div
               style={{
-                background: branchPath === 'true' ? 'rgba(34,197,94,0.12)' : 'rgba(249,115,22,0.12)',
-                border: `1px solid ${branchPath === 'true' ? 'rgba(34,197,94,0.45)' : 'rgba(249,115,22,0.45)'}`,
-                color: branchPath === 'true' ? '#22c55e' : '#f97316',
+                background: branchPath === 'true' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+                border: `1px solid ${branchPath === 'true' ? 'rgba(34,197,94,0.45)' : 'rgba(239,68,68,0.45)'}`,
+                color: branchPath === 'true' ? '#22c55e' : '#ef4444',
                 padding: '2px 7px',
                 fontSize: '9px',
                 fontFamily: 'var(--font-mono, monospace)',
