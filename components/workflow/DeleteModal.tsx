@@ -35,7 +35,7 @@ export function DeleteModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#09090B]/80 backdrop-blur-sm p-4">
       <div 
-        className="w-full max-w-[400px] bg-[#111113] border border-[#26262B] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="w-full max-w-[400px] bg-[#111113] border border-[#26262B] shadow-2xl overflow-hidden animate-in fade-in zoom-in-[0.97] duration-200 ease-out"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-5">
@@ -65,14 +65,14 @@ export function DeleteModal({
             <button
               onClick={(e) => { e.stopPropagation(); onClose(); }}
               disabled={isDeleting}
-              className="h-9 px-4 text-[13px] font-medium text-[#FAFAFA] bg-[#161618] hover:bg-[#26262B] border border-[#26262B] transition-colors disabled:opacity-50"
+              className="h-9 px-4 text-[13px] font-medium text-[#FAFAFA] bg-[#161618] hover:bg-[#26262B] border border-[#26262B] transition-colors duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onConfirm(); }}
               disabled={isDeleting}
-              className="h-9 px-4 flex items-center justify-center gap-2 text-[13px] font-medium text-white bg-[#EF4444] hover:bg-[#DC2626] transition-colors disabled:opacity-50 min-w-[100px]"
+              className="h-9 px-4 flex items-center justify-center gap-2 text-[13px] font-medium text-white bg-[#EF4444] hover:bg-[#DC2626] transition-colors duration-150 ease-out active:scale-[0.97] disabled:opacity-50 min-w-[100px]"
             >
               {isDeleting ? (
                 <>

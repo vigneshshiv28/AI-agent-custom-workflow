@@ -54,6 +54,18 @@
 }
 
 @theme inline {
+  --color-onyx: #08090a;
+  --color-charcoal: #0f1011;
+  --color-obsidian: #161718;
+  --color-graphite: #23252a;
+  --color-iron: #323334;
+  --color-steel: #383b3f;
+  --color-slate: #62666d;
+  --color-fog: #8a8f98;
+  --color-mist: #d0d6e0;
+  --color-platinum: #e5e5e6;
+  --color-snow: #f7f8f8;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter-sans);

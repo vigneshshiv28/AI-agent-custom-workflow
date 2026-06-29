@@ -13,7 +13,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onCreate }) => {
       </p>
       <button 
         onClick={onCreate}
-        className="h-[36px] px-4 bg-[#F49ACB] text-[#09090B] text-[13px] font-semibold rounded-[6px] hover:opacity-90 transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer"
+        className="h-[36px] px-4 bg-[#F49ACB] text-[#09090B] text-[13px] font-semibold rounded-none hover:opacity-90 transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer"
       >
         Create Workflow
       </button>

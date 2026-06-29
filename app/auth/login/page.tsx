@@ -79,7 +79,7 @@ export default function LoginPage() {
                 <button
                     onClick={onGoogleSubmit}
                     type="button"
-                    className="w-full h-10 flex items-center justify-center gap-2 bg-[#0a0a0c]/50 border border-white/[0.06] text-[13px] text-[#FAFAFA] font-medium rounded-none hover:bg-[#111113] transition-all duration-150 mb-6 focus:outline-none focus:ring-1 focus:ring-white/[0.08] cursor-pointer active:scale-[0.98] ease-in-out shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
+                    className="w-full h-10 flex items-center justify-center gap-2 bg-[#0a0a0c]/50 border border-white/[0.06] text-[13px] text-[#FAFAFA] font-medium rounded-none hover:bg-[#111113] transition-all duration-150 mb-6 focus:outline-none cursor-pointer active:scale-[0.97] ease-out"
                 >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
                         <path
@@ -118,7 +118,7 @@ export default function LoginPage() {
                             type="email"
                             placeholder="you@example.com"
                             {...register("email")}
-                            className="w-full h-10 bg-[#09090b] border border-white/[0.04] text-[13px] text-[#FAFAFA] placeholder:text-[#71717A] rounded-none px-3 focus:outline-none focus:ring-1 focus:ring-[#F49ACB]/20 focus:border-[#F49ACB]/30 transition-all duration-150 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4),inset_0_-1px_0_rgba(255,255,255,0.04)]"
+                            className="w-full h-10 bg-[#09090b] border border-white/[0.04] text-[13px] text-[#FAFAFA] placeholder:text-[#71717A] rounded-none px-3 focus:outline-none focus:border-white/30 transition-all duration-150"
                         />
                         {errors.email && (
                             <p className="text-[#F87171] text-[11px] mt-1">{errors.email.message}</p>
@@ -134,7 +134,7 @@ export default function LoginPage() {
                             type="password"
                             placeholder="••••••••"
                             {...register("password")}
-                            className="w-full h-10 bg-[#09090b] border border-white/[0.04] text-[13px] text-[#FAFAFA] placeholder:text-[#71717A] rounded-none px-3 focus:outline-none focus:ring-1 focus:ring-[#F49ACB]/20 focus:border-[#F49ACB]/30 transition-all duration-150 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4),inset_0_-1px_0_rgba(255,255,255,0.04)]"
+                            className="w-full h-10 bg-[#09090b] border border-white/[0.04] text-[13px] text-[#FAFAFA] placeholder:text-[#71717A] rounded-none px-3 focus:outline-none focus:border-white/30 transition-all duration-150"
                         />
                         {errors.password && (
                             <p className="text-[#F87171] text-[11px] mt-1">{errors.password.message}</p>
@@ -144,7 +144,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full h-10 flex items-center justify-center gap-2 bg-[#F49ACB] text-[#09090B] text-[13px] font-medium rounded-none transition-all duration-150 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed mt-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#F49ACB]/30 focus:ring-offset-2 focus:ring-offset-[#0d0d0f] active:scale-[0.98] ease-in-out shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_2px_4px_rgba(0,0,0,0.2)]"
+                        className="w-full h-10 flex items-center justify-center gap-2 bg-[#F49ACB] text-[#09090B] text-[13px] font-medium rounded-none transition-all duration-150 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed mt-2 cursor-pointer focus:outline-none active:scale-[0.97] ease-out"
                     >
                         Sign In
                         {isSubmitting && (
@@ -155,7 +155,7 @@ export default function LoginPage() {
 
                 <p className="text-[13px] text-[#71717A] mt-8 w-full text-center sm:text-left">
                     Don't have an account?{' '}
-                    <Link href="/auth/signup" className="text-[#FAFAFA] hover:text-[#F49ACB] transition-colors duration-150">
+                    <Link href="/auth/signup" className="text-[#FAFAFA] hover:text-white transition-colors duration-150">
                         Create account
                     </Link>
                 </p>

@@ -36,6 +36,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
     queryFn: getDashboardSummary,
     initialData: initialWorkflows,
     refetchOnWindowFocus: false,
+    refetchInterval: 5000,
   });
 
   const filteredWorkflows = workflows.filter(w =>
@@ -105,7 +106,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
           </button>
           <input
             type="text"
-            className="w-[320px] bg-[#161618] border border-[#26262B] text-[13px] font-mono text-[#FAFAFA] placeholder:text-[#71717A] px-4 py-2 rounded-[6px] focus:outline-none focus:border-[#F49ACB] transition-colors"
+            className="w-[320px] bg-[#161618] border border-[#26262B] text-[13px] font-mono text-[#FAFAFA] placeholder:text-[#71717A] px-4 py-2 rounded-none focus:outline-none focus:border-[#F49ACB] transition-colors"
             placeholder="SEARCH WORKFLOWS..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -115,7 +116,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
           <button
             onClick={handleCreateNewWorkflow}
             disabled={isCreating}
-            className="h-[36px] px-4 bg-[#F49ACB] text-[#09090B] text-[13px] font-mono uppercase tracking-wide font-semibold rounded-[6px] hover:opacity-90 transition-all duration-150 ease-ui-out active:scale-[0.97] cursor-pointer disabled:opacity-50"
+            className="h-[36px] px-4 bg-[#F49ACB] text-[#09090B] text-[13px] font-mono uppercase tracking-wide font-semibold rounded-none hover:opacity-90 transition-all duration-150 ease-out active:scale-[0.97] cursor-pointer disabled:opacity-50"
           >
             {isCreating ? 'Creating...' : 'Create Workflow'}
           </button>
@@ -135,7 +136,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
             </button>
 
             {isProfileMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#161618] border border-[#26262B] py-1 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-[#161618] border border-[#26262B] py-1 z-50 animate-in fade-in zoom-in-[0.97] duration-150 ease-out origin-top-right">
                 <div className="px-4 py-2 border-b border-[#26262B] mb-1">
                   <p className="text-[13px] font-medium text-[#FAFAFA] truncate">{session?.user?.name || "User"}</p>
                   <p className="text-[11px] text-[#A1A1AA] truncate">{session?.user?.email || ""}</p>
@@ -164,7 +165,7 @@ export const DashboardClient = ({ initialWorkflows }: DashBoardClientProps) => {
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto animate-in fade-in zoom-in-[0.97] slide-in-from-bottom-2 duration-300 ease-out fill-mode-both">
           <div className="max-w-[1440px] w-full mx-auto px-[32px] py-[32px] flex flex-col gap-[32px]">
             
             {filteredWorkflows.length === 0 ? (
