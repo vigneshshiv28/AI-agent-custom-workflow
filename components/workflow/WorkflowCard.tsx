@@ -210,7 +210,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({ workflow, onEdit, on
         })()}
       </div>
 
-      <div className="mt-auto text-[13px] text-fog">
+      <div className="mt-auto text-[13px] text-fog" suppressHydrationWarning>
         Last updated: {new Date(workflow.updatedAt || workflow.createdAt || Date.now()).toLocaleString(undefined, {
           month: 'short',
           day: 'numeric',

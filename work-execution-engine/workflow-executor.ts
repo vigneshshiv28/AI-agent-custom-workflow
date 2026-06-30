@@ -6,6 +6,8 @@ import { createExecutionContext } from "./execution-context";
 import { retry } from "./retry";
 import { measureExecutionTimeSync } from "./profiler";
 import { IntegrationRegistry } from "./integrations";
+import { generateText } from "ai";
+import { getModel } from "./model";
 export class WorkflowExecutor {
   private workflowId: string;
   private userId: string;
@@ -225,7 +227,30 @@ export class WorkflowExecutor {
       if (nodeType === "Trigger") {
         result = { text: "Workflow triggered", data: {} };
       } else if (nodeType === "Decision") {
-        result = { branch: "true", output: input } as ConditionNodeOutput;
+        const conditionPrompt: string = node.data?.Prompt ?? node.data?.prompt ?? "";
+
+        const { text: llmDecision } = await generateText({
+          model: getModel(),
+          system: `You are a strict boolean decision evaluator. You will be given a condition and some input data.
+Evaluate whether the condition is TRUE or FALSE based on the input data.
+
+RULES:
+- Respond with ONLY the word "true" or "false" (lowercase, no quotes, no extra text).
+- Be strict and literal in your evaluation.
+- If the condition cannot be clearly determined from the input, respond with "false".`,
+          prompt: `===== CONDITION TO EVALUATE =====
+${conditionPrompt}
+
+===== INPUT DATA =====
+text: ${input?.text ?? "(none)"}
+data: ${JSON.stringify(input?.data ?? {}, null, 2)}
+
+Based on the above input data, is the condition TRUE or FALSE? Respond with only "true" or "false".`,
+        });
+
+        const branch = llmDecision.trim().toLowerCase() === "true" ? "true" : "false";
+        console.log(`[Decision] condition: "${conditionPrompt}" → ${branch}`);
+        result = { branch, output: input } as ConditionNodeOutput;
       } else {
         const integration = IntegrationRegistry.get(node.type);
         if (!integration) {
