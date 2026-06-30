@@ -1,26 +1,26 @@
 import React from 'react'
 
 export const Logo = () => {
-    return (
-      <div className='flex items-center gap-2'>
-        <LogoIcon fill='#0fe6b0'/>
-        <p className='text-2xl font-semibold'>
-          Agent<span className=' text-primary'>Flow</span>
-        </p>
-      </div>
-    )
-  }
+  return (
+    <div className='flex items-center gap-2'>
+      <LogoIcon fill='#0fe6b0' />
+      <p className='text-2xl font-semibold'>
+        Agent<span className=' text-primary'>Flow</span>
+      </p>
+    </div>
+  )
+}
 
 export const LogoIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg
-      width={30}
-      height={30} 
-      viewBox="0 0 20000 20000"
-      fill='#FFFFFF'
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
-      <path d="M0 10000 l0 -10000 10000 0 10000 0 0 10000 0 10000 -10000 0 -10000
+  <svg
+    width={30}
+    height={30}
+    viewBox="0 0 20000 20000"
+    fill='#FFFFFF'
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path d="M0 10000 l0 -10000 10000 0 10000 0 0 10000 0 10000 -10000 0 -10000
   0 0 -10000z m10360 7324 c663 -26 1426 -172 2092 -400 1076 -369 2084 -1014
   2811 -1799 1052 -1135 1673 -2543 1848 -4190 25 -238 48 -728 43 -945 -5 -260
   -14 -522 -19 -555 -5 -36 -12 -112 -20 -220 -20 -268 -98 -818 -156 -1105
@@ -50,6 +50,5 @@ export const LogoIcon = (props: React.SVGProps<SVGSVGElement>) => (
   -242 57 -94 67 -131 42 -153 -31 -25 -60 -7 -117 73 -455 638 -763 1590 -864
   2670 -70 751 -25 1601 126 2352 353 1767 1237 3227 2544 4203 1025 766 2376
   1250 3835 1373 296 25 590 29 980 13z" />
-    </svg>
-  );
-  
+  </svg>
+);
